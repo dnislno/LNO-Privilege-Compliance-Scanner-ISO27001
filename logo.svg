@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" width="400" height="100">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#38bdf8"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#38bdf8"/>
+      <stop offset="100%" style="stop-color:#818cf8"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Shield Icon -->
+  <g transform="translate(5, 8)">
+    <!-- Shield body -->
+    <path d="M30 5 L52 5 L52 30 Q52 55 30 70 Q8 55 8 30 L8 5 Z"
+          fill="none" stroke="url(#shieldGrad)" stroke-width="3.5" stroke-linejoin="round"/>
+    <!-- Shield inner accent line -->
+    <path d="M30 10 L48 10 L48 30 Q48 50 30 63 Q12 50 12 30 L12 10 Z"
+          fill="none" stroke="#38bdf8" stroke-width="1.2" opacity="0.3" stroke-linejoin="round"/>
+    <!-- Checkmark -->
+    <polyline points="20,32 27,42 40,22"
+              fill="none" stroke="#38bdf8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+  </g>
+
+  <!-- Key Icon (represents Privilege) -->
+  <g transform="translate(75, 28)" opacity="0.85">
+    <circle cx="10" cy="10" r="8" fill="none" stroke="#818cf8" stroke-width="2.5"/>
+    <line x1="16" y1="10" x2="36" y2="10" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="30" y1="10" x2="30" y2="18" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="22" y1="10" x2="22" y2="14" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+
+  <!-- Divider -->
+  <line x1="110" y1="18" x2="110" y2="82" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Wordmark: LNO -->
+  <text x="122" y="47" font-family="'Inter','Segoe UI',system-ui,-apple-system,sans-serif"
+        font-weight="700" font-size="32" fill="#e2e8f0" letter-spacing="3">LNO</text>
+
+  <!-- Tagline line 1: Privilege Compliance Scanner -->
+  <text x="122" y="68" font-family="'Inter','Segoe UI',system-ui,-apple-system,sans-serif"
+        font-weight="600" font-size="13" fill="#94a3b8" letter-spacing="2.5">PRIVILEGE COMPLIANCE SCANNER</text>
+
+  <!-- Tagline line 2: ISO 27001 -->
+  <text x="122" y="82" font-family="'Inter','Segoe UI',system-ui,-apple-system,sans-serif"
+        font-weight="500" font-size="9" fill="#64748b" letter-spacing="4">ISO 27001 · WINDOWS ACCESS AUDIT</text>
+</svg>

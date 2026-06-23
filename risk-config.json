@@ -1,0 +1,25 @@
+{
+  "description": "Risk scoring configuration for LNO Privilege Compliance Scanner",
+  "author": "dnislno (https://github.com/dnislno)",
+  "severity_weights": {
+    "critical": 25,
+    "high": 10,
+    "medium": 4,
+    "low": 1,
+    "info": 0
+  },
+  "type_overrides": {
+    "unquoted_service": {
+      "severity": "low",
+      "weight": 1,
+      "note": "Many Windows built-in services have unquoted paths with no spaces in binary path"
+    },
+    "no_lockout_policy": {
+      "severity": "medium",
+      "weight": 4
+    }
+  },
+  "suppressed_types": [],
+  "min_score": 10,
+  "max_score": 100
+}

@@ -1,0 +1,8 @@
+{
+  "name": "privesc-scan",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "sql.js": "^1.10.0"
+  }
+}
