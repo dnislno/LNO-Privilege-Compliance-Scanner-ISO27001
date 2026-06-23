@@ -17,6 +17,24 @@ const DB_PATH = path.join(__dirname, 'scan.db');
 const INDEX = path.join(__dirname, 'index.html');
 const SAFE_ORIGIN = 'http://localhost:9090';
 
+// Load .env file manually (no dotenv dependency)
+try {
+  const envFile = fs.readFileSync(path.join(__dirname, '.env'), 'utf-8');
+  for (const line of envFile.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        const key = trimmed.slice(0, eqIdx).trim();
+        const val = trimmed.slice(eqIdx + 1).trim();
+        if (!process.env[key]) process.env[key] = val;
+      }
+    }
+  }
+} catch (_) { /* .env file is optional */ }
+
+const SCAN_TOKEN = process.env.SCAN_TOKEN || '';
+
 // CSV cells starting with these chars can execute formulas in Excel/Sheets
 const CSV_FORMULA_CHARS = ['=', '+', '-', '@', '|'];
 function csvEscape(v) {
@@ -242,6 +260,10 @@ async function handleAPI(req, res) {
 
   if (pathname === '/api/scan/trigger') {
     if (req.method !== 'POST') { res.writeHead(405); res.end(JSON.stringify({ error: 'POST required' })); return; }
+    const auth = req.headers['authorization'];
+    if (SCAN_TOKEN && (!auth || auth !== `Bearer ${SCAN_TOKEN}`)) {
+      res.writeHead(401); res.end(JSON.stringify({ error: 'Unauthorized - set SCAN_TOKEN env or provide Authorization: Bearer <token>' })); return;
+    }
     const { scan } = require('./scanner.js');
     try {
       await scan();
@@ -279,4 +301,4 @@ const server = http.createServer((req, res) => {
   }
 });
 
-server.listen(PORT, () => console.log(`Server: http://localhost:${PORT}`));
+server.listen(PORT, '127.0.0.1', () => console.log(`Server: http://localhost:${PORT}`));

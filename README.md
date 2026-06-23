@@ -50,10 +50,10 @@ LNO Privilege Compliance Scanner translates every technical finding directly to 
 
 | What a CIS tool says | What LNO Privilege Compliance Scanner says |
 |----------------------|------------------------|
-| `Ensure 'MinimumPasswordLength' is set to '8'` | **A.9.4.3** — Weak password policy: HIGH risk |
-| `Ensure 'SeDebugPrivilege' is not enabled` | **A.9.2.3** — Dangerous privilege enabled: HIGH risk |
-| `Verify service path does not contain unquoted spaces` | **A.9.2.3** — Unquoted service path: MEDIUM risk |
-| *(no equivalent)* | **A.12.2.1** — Defender real-time protection disabled: HIGH risk |
+| `Ensure 'MinimumPasswordLength' is set to '8'` | **A.5.17** — Weak password policy: HIGH risk |
+| `Ensure 'SeDebugPrivilege' is not enabled` | **A.8.2** — Dangerous privilege enabled: HIGH risk |
+| `Verify service path does not contain unquoted spaces` | **A.8.2** — Unquoted service path: MEDIUM risk |
+| *(no equivalent)* | **A.8.7** — Defender real-time protection disabled: HIGH risk |
 
 This means your compliance team does not need to translate CIS findings into ISO control language. LNO Privilege Compliance Scanner delivers the mapping natively.
 
@@ -83,11 +83,11 @@ Every finding maps to an ISO 27001 Annex A control with remediation guidance:
 
 | Finding | Severity | ISO Control |
 |---------|----------|-------------|
-| Weak password policy (< 8 chars) | HIGH | A.9.4.3 |
-| SYSTEM service from non-system path | HIGH | A.9.2.2 |
-| World-writable directory on sensitive path | HIGH | A.9.2 |
-| LSASS not running as PPL | MEDIUM | A.9.2.3 |
-| Unquoted service paths | LOW* | A.9.2.3 |
+| Weak password policy (< 8 chars) | HIGH | A.5.17 |
+| SYSTEM service from non-system path | HIGH | A.8.2 |
+| World-writable directory on sensitive path | HIGH | A.5.15 |
+| LSASS not running as PPL | MEDIUM | A.8.2 |
+| Unquoted service paths | LOW* | A.8.2 |
 
 *\*Configurable — see risk-config.json*
 
@@ -151,7 +151,7 @@ Each control is assessed as:
 | **A.8.15** | Logging | LSA protection, event log configuration indicators |
 | **A.8.20** | Network Security | Firewall status, outbound connections from privileged processes |
 | **A.8.32** | Change Management | Process/service inventory as baseline for change detection |
-| **A.9.2** | Access Control | User accounts, group memberships, ACL analysis on sensitive paths |
+| **A.5.15** | Access Control | User accounts, group memberships, ACL analysis on sensitive paths |
 
 ---
 

@@ -21,3 +21,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Environment (contains secrets — DO NOT COMMIT)
+.env
