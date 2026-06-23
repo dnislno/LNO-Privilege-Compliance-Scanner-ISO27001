@@ -13,6 +13,60 @@
 
 ## Bagian A: Architecture Decision Record
 
+### ADR-009: Security Headers & CORS Restriction
+
+| Field | Value |
+|-------|-------|
+| **Keputusan** | Menambahkan security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`) dan membatasi CORS dari `*` ke `http://localhost:9090` |
+| **Konteks** | Analisis keamanan eksternal menemukan wildcard CORS memungkinkan data exfiltration via situs malicious di browser korban, dan ketiadaan security headers melanggar standar OWASP minimum. |
+| **Alasan** | `*` CORS tidak diperlukan karena dashboard hanya diakses dari localhost. Security headers mencegah clickjacking, MIME-type sniffing, dan referrer leakage. |
+| **Status** | **Diterima** |
+
+### ADR-010: Input Validation API
+
+| Field | Value |
+|-------|-------|
+| **Keputusan** | Menambahkan validasi parameter path (`/api/acl`) dan pid (`/api/processes/detail`) dengan whitelist karakter aman |
+| **Konteks** | Endpoint API menerima input pengguna tanpa validasi, membuka risiko path traversal dan injection. |
+| **Alasan** | Validasi dini mencegah eksploitasi sebelum mencapai query SQL. Parameterized query sudah ada, tapi validasi input adalah defense-in-depth. |
+| **Status** | **Diterima** |
+
+### ADR-011: CSV Formula Injection Prevention
+
+| Field | Value |
+|-------|-------|
+| **Keputusan** | Menambahkan prefix `\t` untuk nilai CSV yang diawali `=`, `+`, `-`, `@`, atau `|` |
+| **Konteks** | CSV export dapat mengeksekusi formula Excel jika nilai dimulai dengan karakter tersebut, memungkinkan DDE/WEBSERVICE injection. |
+| **Alasan** | Neutralize via `\t` mencegah interpretasi formula tanpa mengubah data. Sesuai OWASP CSV Injection cheatsheet. |
+| **Status** | **Diterima** |
+
+### ADR-012: Scheduled Scan Mode
+
+| Field | Value |
+|-------|-------|
+| **Keputusan** | Menambahkan parameter `--schedule` untuk mode non-interaktif (exit setelah selesai) |
+| **Konteks** | Tool hanya berjalan on-demand; untuk monitoring periodik perlu integrasi Windows Task Scheduler. |
+| **Alasan** | Parameter `--schedule` memberikan exit code dan timestamp logging yang compatible dengan Task Scheduler. Tidak perlu Windows Service — tetap ringan. |
+| **Status** | **Diterima** |
+
+### ADR-013: Integration Test Suite
+
+| Field | Value |
+|-------|-------|
+| **Keputusan** | Satu file `test.js` dengan 141 test case untuk integration testing |
+| **Konteks** | Tidak ada test sama sekali; setiap perubahan berisiko regression tanpa automated guard. |
+| **Alasan** | Integration test lebih bernilai dari unit test untuk tool dengan sedikit modul. Cakupan: semua endpoint, security headers, input validation, CSV format, static files. |
+| **Status** | **Diterima** |
+
+### ADR-014: CI/CD Pipeline (GitHub Actions)
+
+| Field | Value |
+|-------|-------|
+| **Keputusan** | GitHub Actions workflow: lint di Ubuntu + scan & test di Windows |
+| **Konteks** | Tidak ada automated quality gate; maturity tool rendah dari perspektif komunitas. |
+| **Alasan** | Zero-cost CI yang memberikan visibility ke komunitas. Windows runner menjamin test berjalan di OS target sebenarnya. |
+| **Status** | **Diterima** |
+
 ### ADR-001: Runtime Platform — Node.js
 
 | Field | Value |
@@ -268,11 +322,11 @@ security_policy        - Konfigurasi password policy, UAC, LSA
 GET /api/overview               - Metadata scan + jumlah severity + risk score
 GET /api/findings               - Semua findings, diurutkan berdasarkan severity
 GET /api/findings?severity=X    - Filter berdasarkan severity
-GET /api/compliance             - Status 93 kontrol ISO 27001 Annex A (dengan findings per kontrol)
+GET /api/compliance             - Status 93 kontrol ISO 27001 Annex A (dengan findings per kontrol, security headers: nosniff, DENY, no-referrer)
 GET /api/user                   - User saat ini + groups + privileges
 GET /api/local-users            - Akun user lokal
 GET /api/local-groups           - Grup dengan anggota
-GET /api/acl                    - Entri ACL file (opsional ?path=)
+GET /api/acl                    - Entri ACL file (opsional ?path=, dengan validasi input)
 GET /api/security-policy        - Kebijakan password/lockout/UAC
 GET /api/processes              - Semua proses dengan risk scores + parent_app
 GET /api/processes/suspicious   - Proses dengan risk_score >= 20
@@ -320,6 +374,10 @@ Custom: override unquoted_service ke weight=1 (default medium=4)
 | Akses SQLite DB | Hanya lokal, tidak ada eksposur DB ke jaringan |
 | XSS via data API | Dashboard menggunakan `.textContent` bukan `.innerHTML` untuk nilai dari pengguna; `innerHTML` hanya untuk template string tepercaya |
 | Eksposur port | Server bind ke `localhost` saja, bukan `0.0.0.0` |
+| Data exfiltration via CORS | CORS dibatasi ke `http://localhost:9090`, bukan wildcard `*` |
+| Clickjacking / MIME sniffing | Security headers: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` |
+| CSV injection | Formula injection (`=`, `+`, `-`, `@`) di-neutralize dengan prefix `\t` |
+| Path traversal / PID injection | Validasi input ketat di parameter `path` dan `pid` |
 | WMI sniffing | Traffic WMI lokal ke mesin; scanner tidak melakukan panggilan jaringan |
 
 ---
@@ -348,9 +406,12 @@ LNO Privilege Compliance Scanner **layak dijadikan alat bukti implementasi ISO 2
 2. **Audit trail lengkap** — setiap temuan mencatat: tipe, severity, kategori, ISO control, judul, detail, dan remediasi
 3. **Evidence per kontrol** — kolom `evidence` pada compliance_status mencatat temuan spesifik yang melanggar atau konfirmasi "Scanner verified"
 4. **Deteksi perubahan** — setiap scan menghasilkan snapshot baru; diff dapat dilakukan secara manual antar scan
-5. **CSV Export** — temuan, compliance, dan proses dapat diekspor dalam format CSV (dengan BOM untuk Excel) sebagai bukti audit
+5. **CSV Export** — temuan, compliance, dan proses dapat diekspor dalam format CSV (dengan BOM untuk Excel, formula injection terneutralisasi) sebagai bukti audit
 6. **Transparansi aturan** — semua aturan dan bobot terdokumentasi di risk-config.json dan FINDING_DEFS (scanner.js)
-7. **Zero trust architecture** — semua pemrosesan lokal, tanpa transmisi data ke pihak ketiga, menjamin integritas bukti
+7. **Security hardening** — CORS terbatas, security headers, input validation, CSV injection prevention
+8. **Quality assurance** — 141 integration tests + CI/CD pipeline (GitHub Actions)
+9. **Scheduled scanning** — parameter `--schedule` untuk Windows Task Scheduler
+10. **Zero trust architecture** — semua pemrosesan lokal, tanpa transmisi data ke pihak ketiga, menjamin integritas bukti
 
 Tool ini dirancang untuk menjawab pertanyaan auditor: *"Bagaimana Anda tahu bahwa endpoint ini aman? Tunjukkan buktinya."* Dengan satu perintah `node scanner.js`, Anda mendapatkan laporan lengkap yang siap audit.
 

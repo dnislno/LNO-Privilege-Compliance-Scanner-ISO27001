@@ -70,7 +70,7 @@
 
 | Total Test Cases | Lulus | Gagal | Tidak Diterapkan | Tingkat Kelulusan |
 |------------------|-------|-------|-------------------|-------------------|
-| 34 | 33 | 0 | 1 | 100% |
+| 40 | 39 | 0 | 1 | 100% |
 
 **Catatan:** Test TC-13 (perbandingan scan historis) tidak diterapkan *by design* sesuai kebijakan data minimization.
 
@@ -553,6 +553,90 @@
 
 ---
 
+#### TC-35: Security — Security Headers
+
+| Field | Value |
+|-------|-------|
+| **Test ID** | TC-35 |
+| **Modul** | Server |
+| **Judul** | Security headers dikirim di setiap respons API |
+| **Langkah** | `curl -I http://localhost:9090/api/overview` |
+| **Hasil Diharapkan** | Header: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Access-Control-Allow-Origin: http://localhost:9090` |
+| **Aktual** | ✓ Semua security headers ada dengan nilai yang benar |
+| **Status** | **LULUS** |
+
+---
+
+#### TC-36: Security — Input Validation ACL Path
+
+| Field | Value |
+|-------|-------|
+| **Test ID** | TC-36 |
+| **Modul** | API |
+| **Judul** | Path traversal pada `/api/acl` ditolak |
+| **Langkah** | `GET /api/acl?path=<script>alert(1)</script>` |
+| **Hasil Diharapkan** | HTTP 400, JSON `{"error":"Invalid path parameter"}` |
+| **Aktual** | ✓ 400 Bad Request, path berbahaya ditolak |
+| **Status** | **LULUS** |
+
+---
+
+#### TC-37: Security — Input Validation PID
+
+| Field | Value |
+|-------|-------|
+| **Test ID** | TC-37 |
+| **Modul** | API |
+| **Judul** | PID injection pada `/api/processes/detail` ditolak |
+| **Langkah** | `GET /api/processes/detail?pid=abc` dan `pid=-1` |
+| **Hasil Diharapkan** | HTTP 400 untuk kedua kasus |
+| **Aktual** | ✓ 400 Bad Request untuk PID invalid dan negatif |
+| **Status** | **LULUS** |
+
+---
+
+#### TC-38: Security — CSV Formula Injection
+
+| Field | Value |
+|-------|-------|
+| **Test ID** | TC-38 |
+| **Modul** | API |
+| **Judul** | Nilai CSV yang diawali `=`, `+`, `-`, `@` di-neutralize |
+| **Langkah** | Export CSV, periksa nilai yang diawali karakter berbahaya |
+| **Hasil Diharapkan** | Nilai berbahaya di-prefix dengan `\t` untuk mencegah eksekusi formula Excel |
+| **Aktual** | ✓ Fungsi `csvEscape()` meng-neutralize semua karakter berbahaya |
+| **Status** | **LULUS** |
+
+---
+
+#### TC-39: Integration Test Suite
+
+| Field | Value |
+|-------|-------|
+| **Test ID** | TC-39 |
+| **Modul** | Test |
+| **Judul** | Semua integration test lulus |
+| **Langkah** | `npm install && node scanner.js && node server.js && node test.js` |
+| **Hasil Diharapkan** | 141 test cases, 0 failed |
+| **Aktual** | ✓ 141 passed, 0 failed |
+| **Status** | **LULUS** |
+
+---
+
+#### TC-40: Scanner — Scheduled Mode
+
+| Field | Value |
+|-------|-------|
+| **Test ID** | TC-40 |
+| **Modul** | Scanner |
+| **Judul** | Parameter `--schedule` menjalankan scan dan exit |
+| **Langkah** | `node scanner.js --schedule` |
+| **Hasil Diharapkan** | Output timestamp, scan selesai, exit code 0 |
+| **Aktual** | ✓ Scan berjalan dengan timestamp, exit code 0 |
+| **Status** | **LULUS** |
+
+---
+
 ### B.3 Lingkungan Data Uji
 
 | Parameter | Nilai |
@@ -572,7 +656,7 @@
 
 | Kriteria | Status |
 |----------|--------|
-| Semua TC-01 hingga TC-34 dieksekusi | ✓ |
+| Semua TC-01 hingga TC-40 dieksekusi | ✓ |
 | Tingkat kelulusan >= 90% | ✓ (100%) |
 | Nol defect P1 (kritis) | ✓ |
 | Nol defect P2 (tinggi) | ✓ |
@@ -584,12 +668,15 @@
 
 LNO Privilege Compliance Scanner **layak dijadikan alat bukti implementasi ISO 27001:2022** berdasarkan hasil UAT:
 
-1. **100% tingkat kelulusan** (33/33 test case applicable) — semua fungsi berjalan sesuai spesifikasi
+1. **100% tingkat kelulusan** (39/39 test case applicable) — semua fungsi berjalan sesuai spesifikasi
 2. **Cakupan kontrol penuh** — 93 Annex A controls dinilai dengan status compliant/non-compliant/not_assessed
 3. **Audit evidence siap pakai** — CSV Export (findings, compliance, processes) menghasilkan bukti audit dalam format standar
-4. **Transparansi penuh** — semua konfigurasi risk scoring terdokumentasi dan dapat diubah via risk-config.json
-5. **Klasifikasi parent_app** — service/process diklasifikasikan ke aplikasi induk untuk konteks audit yang lebih baik
-6. **Modal detail & sortable columns** — memudahkan auditor menelusuri temuan secara interaktif
+4. **Security hardening** — security headers (nosniff, DENY, no-referrer), CORS restricted, input validation, CSV formula injection prevention
+5. **Automated quality gate** — 141 integration tests + CI/CD pipeline (GitHub Actions)
+6. **Scheduled scanning** — parameter `--schedule` untuk Windows Task Scheduler
+7. **Transparansi penuh** — semua konfigurasi risk scoring terdokumentasi dan dapat diubah via risk-config.json
+8. **Klasifikasi parent_app** — service/process diklasifikasikan ke aplikasi induk untuk konteks audit yang lebih baik
+9. **Modal detail & sortable columns** — memudahkan auditor menelusuri temuan secara interaktif
 
 Dokumen UAT ini, bersama dengan ADR, AGRAF, dan DPRP, menyediakan bukti bahwa tool telah diuji secara sistematis dan siap digunakan sebagai alat bantu audit kepatuhan ISO 27001.
 

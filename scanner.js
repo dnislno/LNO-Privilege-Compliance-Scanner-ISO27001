@@ -1500,7 +1500,20 @@ async function scan() {
 }
 
 if (require.main === module) {
-  scan().catch(e => { console.error('Fatal:', e.message); process.exit(1); });
+  const args = process.argv.slice(2);
+  if (args.includes('--schedule')) {
+    // Scheduled scan mode: run, log, exit (for Windows Task Scheduler)
+    console.log(`[${new Date().toISOString()}] Scheduled scan started`);
+    scan().then(() => {
+      console.log(`[${new Date().toISOString()}] Scan complete`);
+      process.exit(0);
+    }).catch(e => {
+      console.error(`[${new Date().toISOString()}] Fatal:`, e.message);
+      process.exit(1);
+    });
+  } else {
+    scan().catch(e => { console.error('Fatal:', e.message); process.exit(1); });
+  }
 }
 
 module.exports = { scan, DB_PATH };
