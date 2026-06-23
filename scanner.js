@@ -89,22 +89,22 @@ const DANGEROUS_PRIVILEGES = {
 // Each entry maps to an ISO control based on the security domain affected.
 // See the ISO 27001 MAPPING REFERENCE above for full rationale.
 const FINDING_DEFS = {
-  admin_member: { title: 'User is member of Administrators group', category: 'privilege_management', iso: 'A.9.2.3', default_severity: 'critical' },
-  def_disabled: { title: 'Windows Defender real-time protection disabled', category: 'malware_protection', iso: 'A.12.2.1', default_severity: 'high' },
-  firewall_disabled: { title: 'Windows Firewall disabled on one or more profiles', category: 'network_security', iso: 'A.13.1.1', default_severity: 'high' },
-  weak_password_policy: { title: 'Weak password policy (length < 8 or no complexity)', category: 'password_policy', iso: 'A.9.4.3', default_severity: 'high' },
-  guest_enabled: { title: 'Guest account is enabled', category: 'access_control', iso: 'A.9.2', default_severity: 'medium' },
-  uac_disabled: { title: 'UAC disabled - no privilege separation', category: 'privilege_management', iso: 'A.9.2.3', default_severity: 'high' },
-  lsa_not_protected: { title: 'LSASS not running as Protected Process (PPL)', category: 'privilege_management', iso: 'A.9.2.3', default_severity: 'medium' },
-  dangerous_priv: { title: 'User has dangerous privilege enabled: {detail}', category: 'privilege_management', iso: 'A.9.2.3', default_severity: 'high' },
-  world_writable_system: { title: 'World-writable directory detected: {detail}', category: 'access_control', iso: 'A.9.2', default_severity: 'high' },
-  unquoted_service: { title: 'Unquoted service path (escalation risk): {detail}', category: 'privilege_management', iso: 'A.9.2.3', default_severity: 'medium' },
-  sys_service_from_user: { title: 'Service running as SYSTEM from non-system path: {detail}', category: 'least_privilege', iso: 'A.9.2.2', default_severity: 'high' },
-  unsig_process_user: { title: 'Unsigned process from user-writable location: {detail}', category: 'malware_protection', iso: 'A.12.2.1', default_severity: 'medium' },
-  admin_process_network: { title: 'Process running as admin with outbound network: {detail}', category: 'least_privilege', iso: 'A.9.2.2', default_severity: 'medium' },
-  suspicious_service: { title: 'Service from temp/suspicious path: {detail}', category: 'malware_protection', iso: 'A.12.2.1', default_severity: 'critical' },
-  weak_registry_acl: { title: 'Weak ACL on sensitive registry key: {detail}', category: 'access_control', iso: 'A.9.2', default_severity: 'high' },
-  no_password_expiry: { title: 'One or more user accounts have non-expiring passwords', category: 'password_policy', iso: 'A.9.4.3', default_severity: 'medium' },
+  admin_member: { title: 'User is member of Administrators group', category: 'privilege_management', iso: 'A.8.2', default_severity: 'critical' },
+  def_disabled: { title: 'Windows Defender real-time protection disabled', category: 'malware_protection', iso: 'A.8.7', default_severity: 'high' },
+  firewall_disabled: { title: 'Windows Firewall disabled on one or more profiles', category: 'network_security', iso: 'A.8.20', default_severity: 'high' },
+  weak_password_policy: { title: 'Weak password policy (length < 8 or no complexity)', category: 'password_policy', iso: 'A.5.17', default_severity: 'high' },
+  guest_enabled: { title: 'Guest account is enabled', category: 'access_control', iso: 'A.5.15', default_severity: 'medium' },
+  uac_disabled: { title: 'UAC disabled - no privilege separation', category: 'privilege_management', iso: 'A.8.2', default_severity: 'high' },
+  lsa_not_protected: { title: 'LSASS not running as Protected Process (PPL)', category: 'privilege_management', iso: 'A.8.2', default_severity: 'medium' },
+  dangerous_priv: { title: 'User has dangerous privilege enabled: {detail}', category: 'privilege_management', iso: 'A.8.2', default_severity: 'high' },
+  world_writable_system: { title: 'World-writable directory detected: {detail}', category: 'access_control', iso: 'A.5.15', default_severity: 'high' },
+  unquoted_service: { title: 'Unquoted service path (escalation risk): {detail}', category: 'privilege_management', iso: 'A.8.2', default_severity: 'medium' },
+  sys_service_from_user: { title: 'Service running as SYSTEM from non-system path: {detail}', category: 'least_privilege', iso: 'A.8.2', default_severity: 'high' },
+  unsig_process_user: { title: 'Unsigned process from user-writable location: {detail}', category: 'malware_protection', iso: 'A.8.7', default_severity: 'medium' },
+  admin_process_network: { title: 'Process running as admin with outbound network: {detail}', category: 'least_privilege', iso: 'A.8.2', default_severity: 'medium' },
+  suspicious_service: { title: 'Service from temp/suspicious path: {detail}', category: 'malware_protection', iso: 'A.8.7', default_severity: 'critical' },
+  weak_registry_acl: { title: 'Weak ACL on sensitive registry key: {detail}', category: 'access_control', iso: 'A.8.3', default_severity: 'high' },
+  no_password_expiry: { title: 'One or more user accounts have non-expiring passwords', category: 'password_policy', iso: 'A.5.17', default_severity: 'medium' },
 };
 
 // ---------------------------------------------------------------------------
@@ -656,7 +656,7 @@ async function scan() {
   for (const p of enabledDangerousPrivs) {
     findings.push({
       type: 'dangerous_priv', severity: 'high', category: 'privilege_management',
-      iso: 'A.9.2.3', title: FINDING_DEFS.dangerous_priv.title.replace('{detail}', p.name),
+      iso: 'A.8.2', title: FINDING_DEFS.dangerous_priv.title.replace('{detail}', p.name),
       detail: p.risk_note, remediation: 'Remove this privilege from user token if not required'
     });
   }
@@ -691,7 +691,7 @@ async function scan() {
   if (guest && guest.Enabled) {
     findings.push({
       type: 'guest_enabled', severity: 'medium', category: 'access_control',
-      iso: 'A.9.2', title: FINDING_DEFS.guest_enabled.title,
+      iso: 'A.5.15', title: FINDING_DEFS.guest_enabled.title,
       detail: 'Guest account is enabled and could allow anonymous access',
       remediation: 'Disable the Guest account via "net user guest /active:no"'
     });
@@ -702,7 +702,7 @@ async function scan() {
   if (nonExpiring.length > 0) {
     findings.push({
       type: 'no_password_expiry', severity: 'medium', category: 'password_policy',
-      iso: 'A.9.4.3', title: FINDING_DEFS.no_password_expiry.title,
+      iso: 'A.5.17', title: FINDING_DEFS.no_password_expiry.title,
       detail: `Accounts: ${nonExpiring.map(u => u.Name).join(', ')}`,
       remediation: 'Set passwords to expire via "net user <username> /expires:never" or configure password policy'
     });
@@ -742,7 +742,7 @@ async function scan() {
   if (currentUser.IsAdmin) {
     findings.push({
       type: 'admin_member', severity: 'critical', category: 'privilege_management',
-      iso: 'A.9.2.3', title: FINDING_DEFS.admin_member.title,
+      iso: 'A.8.2', title: FINDING_DEFS.admin_member.title,
       detail: `User ${currentUser.UserName} is a member of Administrators group. All processes run with elevated privileges.`,
       remediation: 'Use a standard user account for daily work. Create a separate admin account for administrative tasks.'
     });
@@ -787,7 +787,7 @@ async function scan() {
     if (secPolicy.MinPasswordLength < 8) {
       findings.push({
         type: 'weak_password_policy', severity: 'high', category: 'password_policy',
-        iso: 'A.9.4.3', title: FINDING_DEFS.weak_password_policy.title,
+        iso: 'A.5.17', title: FINDING_DEFS.weak_password_policy.title,
         detail: `Minimum password length is ${secPolicy.MinPasswordLength} (recommended: 8+)`,
         remediation: 'Set minimum password length to at least 8 characters via Local Security Policy > Account Policies > Password Policy'
       });
@@ -795,7 +795,7 @@ async function scan() {
     if (!secPolicy.LockoutThreshold || secPolicy.LockoutThreshold === 0) {
       findings.push({
         type: 'no_lockout_policy', severity: 'medium', category: 'password_policy',
-        iso: 'A.9.4.3', title: 'Account lockout not configured (brute force risk)',
+        iso: 'A.5.17', title: 'Account lockout not configured (brute force risk)',
         detail: 'No account lockout policy set: unlimited login attempts allowed',
         remediation: 'Configure account lockout threshold (e.g., 5 attempts) via Local Security Policy'
       });
@@ -819,7 +819,7 @@ async function scan() {
   if (uacStatus.EnableLUA === 0) {
     findings.push({
       type: 'uac_disabled', severity: 'high', category: 'privilege_management',
-      iso: 'A.9.2.3', title: FINDING_DEFS.uac_disabled.title,
+      iso: 'A.8.2', title: FINDING_DEFS.uac_disabled.title,
       detail: 'UAC (User Account Control) is disabled. Processes run with full admin rights without prompting.',
       remediation: 'Enable UAC via Control Panel > User Accounts > Change User Account Control settings'
     });
@@ -841,7 +841,7 @@ async function scan() {
   if (lsaStatus.RunAsPPL === 0) {
     findings.push({
       type: 'lsa_not_protected', severity: 'medium', category: 'privilege_management',
-      iso: 'A.9.2.3', title: FINDING_DEFS.lsa_not_protected.title,
+      iso: 'A.8.2', title: FINDING_DEFS.lsa_not_protected.title,
       detail: 'LSASS is not running as Protected Process Light (PPL). Credentials can be dumped via Mimikatz if admin access is obtained.',
       remediation: 'Enable LSA protection via Regedit: HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\RunAsPPL = dword:00000001'
     });
@@ -966,7 +966,7 @@ async function scan() {
   if (suspiciousSysProcs.length > 0) {
     findings.push({
       type: 'suspicious_service', severity: 'critical', category: 'malware_protection',
-      iso: 'A.12.2.1', title: `${suspiciousSysProcs.length} SYSTEM process(es) from user-writable path(s)`,
+      iso: 'A.8.7', title: `${suspiciousSysProcs.length} SYSTEM process(es) from user-writable path(s)`,
       detail: `Processes: ${suspiciousSysProcs.map(r => r.name).join(', ')}. SYSTEM processes from user locations indicate potential compromise.`,
       remediation: 'Investigate each process origin. Scan with antivirus.'
     });
@@ -974,7 +974,7 @@ async function scan() {
   if (unsignedUserProcs.length > 0) {
     findings.push({
       type: 'unsig_process_user', severity: 'medium', category: 'malware_protection',
-      iso: 'A.12.2.1', title: `${unsignedUserProcs.length} unsigned process(es) from user-writable path(s)`,
+      iso: 'A.8.7', title: `${unsignedUserProcs.length} unsigned process(es) from user-writable path(s)`,
       detail: `Processes: ${unsignedUserProcs.map(r => r.name).join(', ')}. Unsigned executables in user-writable locations may be malicious.`,
       remediation: 'Verify the legitimacy of unsigned executables in user-writable locations.'
     });
@@ -1028,7 +1028,7 @@ async function scan() {
   if (adminNetworkCount > 0) {
     findings.push({
       type: 'admin_process_network', severity: 'medium', category: 'least_privilege',
-      iso: 'A.9.2.2',
+      iso: 'A.8.2',
       title: `${adminNetworkCount} privileged process(es) with outbound network access`,
       detail: `Processes running as SYSTEM/Administrator have outbound network connections, increasing attack surface`,
       remediation: 'Audit network access requirements for privileged processes. Consider network segmentation.'
@@ -1067,7 +1067,7 @@ async function scan() {
     if (isUnquoted) {
       findings.push({
         type: 'unquoted_service', severity: 'medium', category: 'privilege_management',
-        iso: 'A.9.2.3', title: FINDING_DEFS.unquoted_service.title.replace('{detail}', s.Name),
+        iso: 'A.8.2', title: FINDING_DEFS.unquoted_service.title.replace('{detail}', s.Name),
         detail: `Service "${s.Name}" has unquoted path: ${s.PathName}. Could allow privilege escalation via injected executable.`,
         remediation: `Quote the service path: sc qc ${s.Name}, then sc config ${s.Name} binPath="<correct quoted path>"`
       });
@@ -1076,7 +1076,7 @@ async function scan() {
     if (isSystemService && isNonSystemPath) {
       findings.push({
         type: 'sys_service_from_user', severity: 'high', category: 'least_privilege',
-        iso: 'A.9.2.2', title: FINDING_DEFS.sys_service_from_user.title.replace('{detail}', s.Name),
+        iso: 'A.8.2', title: FINDING_DEFS.sys_service_from_user.title.replace('{detail}', s.Name),
         detail: `Service "${s.Name}" runs as ${s.StartName} from non-system path: ${s.PathName}`,
         remediation: 'Move the service binary to Program Files or System32 and ensure proper ACLs'
       });
@@ -1086,7 +1086,7 @@ async function scan() {
     if (pname && (pname.includes('\\temp\\') || pname.includes('\\downloads\\'))) {
       findings.push({
         type: 'suspicious_service', severity: 'critical', category: 'malware_protection',
-        iso: 'A.12.2.1', title: FINDING_DEFS.suspicious_service.title.replace('{detail}', s.Name),
+        iso: 'A.8.7', title: FINDING_DEFS.suspicious_service.title.replace('{detail}', s.Name),
         detail: `Service "${s.Name}" runs from temp directory: ${s.PathName}`,
         remediation: 'This is highly suspicious. Investigate and remove immediately.'
       });
@@ -1131,7 +1131,7 @@ async function scan() {
           )) {
             findings.push({
               type: 'world_writable_system', severity: 'high', category: 'access_control',
-              iso: 'A.9.2', title: FINDING_DEFS.world_writable_system.title.replace('{detail}', `${sp} (${a.Identity}: ${a.Rights})`),
+              iso: 'A.5.15', title: FINDING_DEFS.world_writable_system.title.replace('{detail}', `${sp} (${a.Identity}: ${a.Rights})`),
               detail: `Path "${sp}" allows "${a.Identity}" with "${a.Rights}" access`,
               remediation: `Restrict permissions on ${sp} to only required administrators/system`
             });
@@ -1165,7 +1165,7 @@ async function scan() {
   if (defender.RealTimeProtection === 'Disabled') {
     findings.push({
       type: 'def_disabled', severity: 'high', category: 'malware_protection',
-      iso: 'A.12.2.1', title: FINDING_DEFS.def_disabled.title,
+      iso: 'A.8.7', title: FINDING_DEFS.def_disabled.title,
       detail: 'Windows Defender real-time protection is disabled',
       remediation: 'Enable via Windows Security > Virus & threat protection > Manage settings > Real-time protection'
     });
@@ -1183,7 +1183,7 @@ async function scan() {
   if (disabledFw.length > 0) {
     findings.push({
       type: 'firewall_disabled', severity: 'high', category: 'network_security',
-      iso: 'A.13.1.1', title: FINDING_DEFS.firewall_disabled.title,
+      iso: 'A.8.20', title: FINDING_DEFS.firewall_disabled.title,
       detail: `Disabled profiles: ${disabledFw.map(f => f.Profile).join(', ')}`,
       remediation: 'Enable Windows Firewall for all profiles via Control Panel > Windows Defender Firewall > Turn on'
     });
@@ -1211,11 +1211,11 @@ async function scan() {
     def_disabled: ['A.8.7','A.8.8'],
     firewall_disabled: ['A.8.20','A.8.21'],
     unquoted_service: ['A.8.2','A.8.9','A.8.32'],
-    sys_service_from_user: ['A.8.2','A.8.3','A.9.2.2'],
-    unsig_process_user: ['A.8.7','A.8.8','A.8.19','A.12.2.1'],
-    admin_process_network: ['A.8.2','A.8.20','A.9.2.2'],
+    sys_service_from_user: ['A.8.2','A.8.3'],
+    unsig_process_user: ['A.8.7','A.8.8','A.8.19'],
+    admin_process_network: ['A.8.2','A.8.20'],
     suspicious_service: ['A.8.7','A.8.8','A.8.19'],
-    world_writable_system: ['A.5.33','A.8.3','A.9.2'],
+    world_writable_system: ['A.5.33','A.8.3'],
     weak_registry_acl: ['A.5.33','A.8.3','A.8.9'],
   };
 
