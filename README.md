@@ -125,7 +125,7 @@ Dark-mode dashboard with tabbed panels:
 
 ## ISO 27001:2022 Compliance Assessment
 
-LNO Privilege Compliance Scanner evaluates all **93 Annex A controls** (ISO/IEC 27001:2022) across four themes:
+LNO Privilege Compliance Scanner lists all **93 Annex A controls** (ISO/IEC 27001:2022) across four themes:
 
 | Theme | Controls | Scope |
 |-------|----------|-------|
@@ -134,8 +134,10 @@ LNO Privilege Compliance Scanner evaluates all **93 Annex A controls** (ISO/IEC 
 | **A.7 — Physical** (14) | A.7.1 – A.7.14 | Perimeters, entry control, equipment security, media handling |
 | **A.8 — Technological** (34) | A.8.1 – A.8.34 | Access control, malware protection, logging, cryptography, networking |
 
+> ⚠️ **Honest coverage note:** Of the 93 controls, approximately **28 are technically verifiable** by this scanner (those queryable via WMI, registry, or PowerShell). The remaining ~65 controls (especially A.5 Organizational, A.6 People, and A.7 Physical) are marked **not_assessed** — they require manual review and cannot be verified by endpoint scanning alone. The dashboard always shows each control's true status.
+
 Each control is assessed as:
-- **Compliant** — scanner verified the control is implemented correctly (no violations detected)
+- **Compliant** — scanner verified the control is implemented correctly (no violations detected). *Note: this uses negative evidence (absence of findings). A control could be misconfigured in ways the scanner does not check.*
 - **Non-compliant** — one or more findings violate this control (with evidence)
 - **Not assessed** — control requires manual review (policy, organizational, or physical controls outside scanner scope)
 
@@ -232,8 +234,10 @@ node server.js       # Start web dashboard at http://localhost:9090
 | Command | Description |
 |---------|-------------|
 | `node scanner.js` | Run full security scan, write results to scan.db |
+| `node scanner.js --schedule` | Run scan in scheduled mode (for Windows Task Scheduler) |
 | `node server.js` | Start HTTP server on port 9090 |
 | `node -e "require('./scanner.js').scan()"` | Programmatic scan invocation |
+| `node test.js` | Run integration test suite (server must be running) |
 
 ### API Endpoints
 | Endpoint | Description |
@@ -305,11 +309,19 @@ Edit `risk-config.json` to customize scoring:
 - **No open handle enumeration** — requires admin rights + NtQuerySystemInformation (C++)
 - **WMI ExecutablePath empty for SYSTEM processes** — Windows restriction for non-admin users
 - **Process owner detection** — WMI GetOwner() can fail for some processes without admin rights
+- **Tailwind CSS loaded via CDN** — first load requires internet. For air-gapped use: open dashboard once online to cache, or download `tailwind.min.js` manually and update `index.html` to reference local copy.
+- **Compliance = negative evidence** — "compliant" status means no finding was detected, not that the control is fully implemented. Always supplement with manual verification for critical controls.
 
 ### Planned Features
-- [ ] Configurable notification thresholds (email/teams/webhook)
+- [x] Configurable risk scoring via risk-config.json
+- [x] CSV export for findings, compliance, and processes
+- [x] Security headers & CORS restriction
+- [x] Input validation on API endpoints
+- [x] Integration test suite
+- [x] CI/CD pipeline (GitHub Actions)
+- [x] Scheduled scan mode (--schedule for Task Scheduler)
 - [ ] PDF compliance report generation
-- [ ] Scheduled scans with Windows Task Scheduler integration
+- [ ] Configurable notification thresholds (email/teams/webhook)
 - [ ] Multi-machine remote scanning
 - [ ] Trend analysis with severity heatmaps
 

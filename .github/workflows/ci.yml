@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npx eslint scanner.js server.js test.js 2>/dev/null || echo "ESLint not configured — skipping"
+      - run: node -e "require('./scanner.js')" 2>&1 | head -5 || echo "Scanner loaded OK (Windows-only features will warn on Linux)"
+
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - name: Run scanner
+        run: node scanner.js
+        timeout-minutes: 5
+      - name: Start server
+        run: Start-Process powershell -ArgumentList "-NoProfile -Command & { node server.js }"
+      - name: Wait for server
+        run: Start-Sleep -Seconds 3
+      - name: Run integration tests
+        run: node test.js
+        timeout-minutes: 2

@@ -15,6 +15,28 @@ const initSqlJs = require('sql.js');
 const PORT = 9090;
 const DB_PATH = path.join(__dirname, 'scan.db');
 const INDEX = path.join(__dirname, 'index.html');
+const SAFE_ORIGIN = 'http://localhost:9090';
+
+// CSV cells starting with these chars can execute formulas in Excel/Sheets
+const CSV_FORMULA_CHARS = ['=', '+', '-', '@', '|'];
+function csvEscape(v) {
+  const s = String(v || '');
+  // Neutralize formula injection by prefixing with tab
+  const neutralized = CSV_FORMULA_CHARS.some(c => s.startsWith(c)) ? '\t' + s : s;
+  return '"' + neutralized.replace(/"/g, '""') + '"';
+}
+
+// Validate input to prevent injection/anomaly
+function isValidPath(p) {
+  if (!p || typeof p !== 'string') return false;
+  if (p.length > 500) return false;
+  // Allow only safe characters in path queries
+  return /^[a-zA-Z0-9_\-\\\/:\. ]+$/.test(p);
+}
+function isValidPid(v) {
+  const n = parseInt(v);
+  return Number.isFinite(n) && n > 0 && n < 65536;
+}
 
 function queryDB(sql, params = []) {
   return new Promise(async (resolve) => {
@@ -44,8 +66,11 @@ async function handleAPI(req, res) {
   const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = parsedUrl.pathname;
 
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', SAFE_ORIGIN);
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
 
   if (pathname === '/api/overview') {
     const scan = await queryOne(`SELECT * FROM scans WHERE status='done' ORDER BY started_at DESC LIMIT 1`);
@@ -110,6 +135,9 @@ async function handleAPI(req, res) {
 
   if (pathname === '/api/acl') {
     const pathFilter = parsedUrl.searchParams.get('path');
+    if (pathFilter && !isValidPath(pathFilter)) {
+      res.writeHead(400); res.end(JSON.stringify({ error: 'Invalid path parameter' })); return;
+    }
     const sql = pathFilter
       ? `SELECT * FROM acl_entries WHERE scan_id = ${LATEST} AND path = ? ORDER BY identity`
       : `SELECT * FROM acl_entries WHERE scan_id = ${LATEST} ORDER BY path, identity`;
@@ -137,8 +165,9 @@ async function handleAPI(req, res) {
   }
 
   if (pathname === '/api/processes/detail') {
-    const pid = parseInt(parsedUrl.searchParams.get('pid'));
-    if (!pid) { res.end(JSON.stringify({ error: 'pid required' })); return; }
+    const pidRaw = parsedUrl.searchParams.get('pid');
+    if (!pidRaw || !isValidPid(pidRaw)) { res.writeHead(400); res.end(JSON.stringify({ error: 'Valid pid required (1-65535)' })); return; }
+    const pid = parseInt(pidRaw);
     const proc = await queryOne(`SELECT * FROM processes WHERE scan_id = ${LATEST} AND pid = ?`, [pid]);
     const conns = await queryDB(`SELECT * FROM connections WHERE scan_id = ${LATEST} AND pid = ?`, [pid]);
     res.end(JSON.stringify({ process: proc, connections: conns }));
@@ -175,7 +204,6 @@ async function handleAPI(req, res) {
   if (pathname.startsWith('/api/export/')) {
     const format = pathname.replace('/api/export/', '');
     let rows, filename, headers;
-    const csvEscape = (v) => '"' + String(v || '').replace(/"/g, '""') + '"';
     switch (format) {
       case 'findings':
         rows = await queryDB(`SELECT type, severity, category, iso, title, detail, remediation FROM findings WHERE scan_id = ${LATEST} ORDER BY severity`);

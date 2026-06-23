@@ -46,7 +46,7 @@
 |----|------------|----------|------------------|----------|
 | R-01 | **Mitigasi** | Perbaiki `isSystemOwner()` untuk menggunakan pengecekan SID aktual, bukan pencocokan prefix string. Tambahkan debug log untuk proses yang salah klasifikasi. | Engineering | Iterasi berikutnya |
 | R-02 | **Terima** (dengan monitoring) | Dokumentasikan keterbatasan. Sistem tidak bisa melewati batasan WMI tanpa hak admin. Tambahkan banner peringatan ketika admin tidak terdeteksi. | Dokumentasi | Saat ini |
-| R-03 | **Mitigasi** | Batasi izin direktori proyek hanya untuk user. Tambahkan integrity check (perbandingan hash untuk scanner.js sebelum eksekusi). | Engineering | Mendatang |
+| R-03 | **Mitigasi** | Batasi izin direktori proyek hanya untuk user. Security headers & CORS restriction telah diimplementasikan untuk mencegah data exfiltration. | Engineering | **Sebagian** (security headers selesai, TOCTOU masih risiko residual) |
 | R-04 | **Mitigasi** | scan.db harus dienkripsi saat diam (SQLCipher) atau disimpan di direktori temp profil user dengan ACL terbatas. | Engineering | Mendatang |
 | R-05 | **Mitigasi** | Algoritma risk score dapat dikonfigurasi — pengguna menetapkan bobot severity sendiri per tipe temuan via `risk-config.json`. | Engineering | **SELESAI** (v1.0) |
 | R-06 | **Mitigasi** | Bagian "Detail" per temuan telah diimplementasikan — setiap temuan menampilkan title, detail (data provenance), dan remediasi. Modal detail menyediakan konteks tambahan. | Engineering | **SELESAI** (v1.0) |
