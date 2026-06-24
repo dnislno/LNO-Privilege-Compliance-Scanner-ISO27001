@@ -1,8 +1,29 @@
 {
-  "name": "privesc-scan",
+  "name": "lno-privilege-compliance-scanner",
   "version": "1.0.0",
+  "description": "Windows privilege compliance scanner with ISO 27001:2022 Annex A mapping, risk scoring, and audit dashboard",
   "private": true,
   "license": "MIT",
+  "author": "dnislno (https://github.com/dnislno)",
+  "keywords": [
+    "iso-27001",
+    "security-audit",
+    "windows-security",
+    "privilege-escalation",
+    "compliance-scanner"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dnislno/LNO-Privilege-Compliance-Scanner-ISO27001.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "scan": "node scanner.js",
+    "start": "node server.js",
+    "test": "node test.js"
+  },
   "dependencies": {
     "sql.js": "1.14.1"
   }
