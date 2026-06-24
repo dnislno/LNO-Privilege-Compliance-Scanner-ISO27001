@@ -205,8 +205,8 @@ Each control is assessed as:
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/lno-privilege-compliance-scanner.git
-cd lno-privilege-compliance-scanner
+git clone https://github.com/dnislno/lno-privilege-compliance-scanner.git
+cd LNO-Privilege-Compliance-Scanner-ISO27001
 
 # Install dependencies (sql.js only)
 npm install
@@ -314,7 +314,7 @@ Edit `risk-config.json` to customize scoring:
 - **No open handle enumeration** — requires admin rights + NtQuerySystemInformation (C++)
 - **WMI ExecutablePath empty for SYSTEM processes** — Windows restriction for non-admin users
 - **Process owner detection** — WMI GetOwner() can fail for some processes without admin rights
-- **Tailwind CSS loaded via CDN** — first load requires internet. For air-gapped use: open dashboard once online to cache, or download `tailwind.min.js` manually and update `index.html` to reference local copy.
+- **Tailwind CSS** — bundled locally (`tailwind.min.js`) with CDN fallback. Works fully air-gapped. First load in browser may still request CDN if local file is missing.
 - **Compliance = negative evidence** — "compliant" status means no finding was detected, not that the control is fully implemented. Always supplement with manual verification for critical controls.
 - **In-memory database** — `scan.db` is loaded into RAM on server start and deleted from disk. Data persists only during the server session for security. Restarting the server without re-scanning means no data (intentional — limits data exposure).
 
