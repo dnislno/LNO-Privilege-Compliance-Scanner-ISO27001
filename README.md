@@ -387,14 +387,9 @@ Edit `risk-config.json` to customize scoring:
 - **Windows only** — leverages WMI and PowerShell (Win32 API). Linux/macOS not supported.
 
 ### Roadmap
-- [ ] PDF compliance report generation
-- [ ] Configurable notification thresholds (email/teams/webhook)
-- [ ] Multi-machine remote scanning
-- [ ] Trend analysis with severity heatmaps
-- [ ] RBAC (viewer/auditor/admin roles)
-- [ ] SIEM integration (syslog CEF format for Splunk/QRadar)
-- [ ] SBOM generation (CycloneDX)
-- [ ] HTTPS with self-signed certificate option
+
+> No active roadmap items. All planned Phase 1 features are implemented and tested.
+> Future development will be driven by user demand.
 
 ---
 
