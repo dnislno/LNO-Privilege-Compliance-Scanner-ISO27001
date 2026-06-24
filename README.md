@@ -386,10 +386,9 @@ Edit `risk-config.json` to customize scoring:
 - **Single-user server** — server processes one request at a time. Burst requests during scan will timeout.
 - **Windows only** — leverages WMI and PowerShell (Win32 API). Linux/macOS not supported.
 
-### Roadmap
+---
 
-> No active roadmap items. All planned Phase 1 features are implemented and tested.
-> Future development will be driven by user demand.
+> **This is a stable, final-form release.** No active development roadmap. Open to new feature proposals — submit via [GitHub Issues](https://github.com/dnislno/LNO-Privilege-Compliance-Scanner-ISO27001/issues) as enhancement requests.
 
 ---
 
