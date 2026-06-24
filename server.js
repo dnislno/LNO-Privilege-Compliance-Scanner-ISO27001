@@ -16,6 +16,14 @@ const PORT = 9090;
 const DB_PATH = path.join(__dirname, 'scan.db');
 const INDEX = path.join(__dirname, 'index.html');
 const SAFE_ORIGIN = 'http://localhost:9090';
+const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'";
+const DASHBOARD_USER = process.env.DASHBOARD_USER || '';
+const DASHBOARD_PASS = process.env.DASHBOARD_PASS || '';
+const API_KEY = process.env.API_KEY || '';
+const RATE_LIMIT = parseInt(process.env.RATE_LIMIT) || 100;
+const RATE_WINDOW = 60000;
+const AUDIT_LOG = path.join(__dirname, 'audit.log');
+const DELETE_DB_ON_LOAD = !!(process.env.DELETE_DB_ON_LOAD);
 
 // Load .env file manually (no dotenv dependency)
 try {
@@ -40,6 +48,24 @@ if (SCAN_TOKEN === 'scan_trigger') {
   console.log('  SCAN_TOKEN: custom token configured');
 }
 
+const DASHBOARD_AUTH = !!(DASHBOARD_USER && DASHBOARD_PASS);
+if (DASHBOARD_AUTH) {
+  console.log('  DASHBOARD_AUTH: enabled (Basic auth)');
+} else {
+  console.log('  DASHBOARD_AUTH: disabled — set DASHBOARD_USER + DASHBOARD_PASS to enable');
+}
+
+if (API_KEY) {
+  console.log('  API_KEY: custom key configured');
+} else {
+  console.log('  API_KEY: not set — set API_KEY env var for API access');
+}
+
+console.log(`  RATE_LIMIT: ${RATE_LIMIT} req/min`);
+console.log(`  DELETE_DB_ON_LOAD: ${DELETE_DB_ON_LOAD ? 'enabled' : 'disabled (file kept on disk for restart recovery)'}`);
+
+const rateStore = new Map();
+
 // CSV cells starting with these chars can execute formulas in Excel/Sheets
 const CSV_FORMULA_CHARS = ['=', '+', '-', '@', '|'];
 function csvEscape(v) {
@@ -61,19 +87,66 @@ function isValidPid(v) {
   return Number.isFinite(n) && n > 0 && n < 65536;
 }
 
+function audit(type, req, status) {
+  const ip = req.connection.remoteAddress || 'unknown';
+  const line = `[${new Date().toISOString()}] ${type} ${req.method} ${req.url} ${status} ${ip}\n`;
+  fs.appendFile(AUDIT_LOG, line, () => {});
+}
+
+function checkRateLimit(req, res) {
+  if (RATE_LIMIT <= 0) return true;
+  const now = Date.now();
+  const ip = req.connection.remoteAddress || 'unknown';
+  if (!rateStore.has(ip)) rateStore.set(ip, []);
+  const timestamps = rateStore.get(ip).filter(t => now - t < RATE_WINDOW);
+  if (timestamps.length >= RATE_LIMIT) {
+    res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '60' });
+    res.end(JSON.stringify({ error: 'Rate limit exceeded' }));
+    return false;
+  }
+  timestamps.push(now);
+  rateStore.set(ip, timestamps);
+  return true;
+}
+
+function requireAuth(req, res, requireApiKey) {
+  const needsBasic = !!(DASHBOARD_USER && DASHBOARD_PASS);
+  if (!needsBasic && !(requireApiKey && API_KEY)) return true;
+  if (requireApiKey && API_KEY && req.headers['x-api-key'] === API_KEY) return true;
+  if (needsBasic) {
+    const auth = req.headers['authorization'];
+    if (auth && auth.startsWith('Basic ')) {
+      const decoded = Buffer.from(auth.slice(6), 'base64').toString();
+      const idx = decoded.indexOf(':');
+      if (idx > 0) {
+        const user = decoded.slice(0, idx);
+        const pass = decoded.slice(idx + 1);
+        if (user === DASHBOARD_USER && pass === DASHBOARD_PASS) return true;
+      }
+    }
+  }
+  res.writeHead(401, { ...(needsBasic ? { 'WWW-Authenticate': 'Basic realm="LNO Privilege Scanner"' } : {}), 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'Unauthorized' }));
+  return false;
+}
+
 let dbCache = null;
 let SQL = null;
 
-// Load DB from disk into memory, then delete the file for security.
-// Data is served from RAM for the lifetime of the server process.
+// Load DB from disk into memory. Optionally delete the file if DELETE_DB_ON_LOAD is set.
+// Default: keep scan.db on disk for restart recovery (data survives server restarts).
 async function loadDB() {
   const sqlJs = await initSqlJs();
   SQL = sqlJs;
   if (fs.existsSync(DB_PATH)) {
     const buf = fs.readFileSync(DB_PATH);
     dbCache = new SQL.Database(buf);
-    try { fs.unlinkSync(DB_PATH); } catch (_) {}
-    console.log('  DB: loaded into memory, file deleted from disk');
+    if (DELETE_DB_ON_LOAD) {
+      try { fs.unlinkSync(DB_PATH); } catch (_) {}
+      console.log('  DB: loaded into memory, file deleted from disk (DELETE_DB_ON_LOAD)');
+    } else {
+      console.log('  DB: loaded into memory, file kept on disk for restart recovery');
+    }
   } else {
     dbCache = new SQL.Database();
     console.log('  DB: empty in-memory database created');
@@ -101,6 +174,8 @@ function queryOne(sql, params = []) {
 const LATEST = "(SELECT id FROM scans WHERE status='done' ORDER BY started_at DESC LIMIT 1)";
 
 async function handleAPI(req, res) {
+  if (!requireAuth(req, res, true)) return;
+
   const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = parsedUrl.pathname;
 
@@ -109,6 +184,14 @@ async function handleAPI(req, res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Content-Security-Policy', CSP);
+
+  const origEnd = res.end.bind(res);
+  res.end = function(...args) {
+    const type = req.url === '/api/scan/trigger' ? 'SCAN' : 'API';
+    audit(type, req, res.statusCode || 200);
+    return origEnd(...args);
+  };
 
   if (pathname === '/api/overview') {
     const scan = await queryOne(`SELECT * FROM scans WHERE status='done' ORDER BY started_at DESC LIMIT 1`);
@@ -245,11 +328,11 @@ async function handleAPI(req, res) {
     switch (format) {
       case 'findings':
         rows = await queryDB(`SELECT type, severity, category, iso, title, detail, remediation FROM findings WHERE scan_id = ${LATEST} ORDER BY severity`);
-        filename = 'findings.csv'; headers = ['Type','Severity','Category','ISO Control','Title','Detail','Remediation'];
+        filename = 'findings.csv'; headers = ['Type','Severity','Category','ISO','Title','Detail','Remediation'];
         break;
       case 'compliance':
         rows = await queryDB(`SELECT control, title, status, severity, evidence FROM compliance_status WHERE scan_id = ${LATEST} ORDER BY control`);
-        filename = 'compliance.csv'; headers = ['ISO Control','Title','Status','Severity','Evidence'];
+        filename = 'compliance.csv'; headers = ['Control','Title','Status','Severity','Evidence'];
         break;
       case 'processes':
         rows = await queryDB(`SELECT name, pid, owner, risk_score, is_signed, memory_mb, has_network, risk_reasons, executable_path FROM processes WHERE scan_id = ${LATEST} ORDER BY risk_score DESC`);
@@ -304,24 +387,26 @@ async function handleAPI(req, res) {
 const MIME = { '.html': 'text/html', '.svg': 'image/svg+xml', '.css': 'text/css', '.js': 'application/javascript', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json' };
 
 const server = http.createServer((req, res) => {
+  if (!checkRateLimit(req, res)) return;
   if (req.url.startsWith('/api/')) return handleAPI(req, res);
+  if (!requireAuth(req, res, false)) return;
   // Serve static files (logo, favicon, etc.) — with path traversal protection
   const sanitized = req.url === '/' ? 'index.html' : req.url.replace(/^\//, '').replace(/\.\./g, '');
   const filePath = path.resolve(path.join(__dirname, sanitized));
   if (!filePath.startsWith(__dirname + path.sep)) {
-    res.writeHead(403);
+    res.writeHead(403, { 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': CSP });
     res.end('Forbidden');
     return;
   }
   if (fs.existsSync(filePath) && !fs.statSync(filePath).isDirectory()) {
     const ext = path.extname(filePath);
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': CSP });
     res.end(fs.readFileSync(filePath));
     return;
   }
   // Fallback to index.html
   if (fs.existsSync(INDEX)) {
-    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.writeHead(200, { 'Content-Type': 'text/html', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': CSP });
     res.end(fs.readFileSync(INDEX, 'utf-8'));
   } else {
     res.writeHead(404);

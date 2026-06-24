@@ -35,6 +35,7 @@ async function run() {
   check('X-Frame-Options: DENY', apiResp.headers['x-frame-options'] === 'DENY', apiResp.headers['x-frame-options']);
   check('Referrer-Policy: no-referrer', apiResp.headers['referrer-policy'] === 'no-referrer', apiResp.headers['referrer-policy']);
   check('CORS restricted to localhost', apiResp.headers['access-control-allow-origin'] === 'http://localhost:9090', apiResp.headers['access-control-allow-origin']);
+  check('Content-Security-Policy present', apiResp.headers['content-security-policy'] && apiResp.headers['content-security-policy'].includes("default-src 'self'"), apiResp.headers['content-security-policy']);
 
   // 3. API overview
   const ov = JSON.parse(apiResp.body);

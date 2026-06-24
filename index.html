@@ -1,10 +1,8 @@
 <!--
-  LNO Privilege Compliance Scanner
+  LNO Privilege Compliance Scanner v2 — Enterprise Dashboard
   Author  : dnislno (https://github.com/dnislno)
-  License : MIT (see LICENSE file)
+  License : MIT — see LICENSE file
   DISCLAIMER: This software is provided "AS IS" without warranty of any kind.
-  The author shall not be held liable for any damages arising from the use
-  of this software. Users assume all responsibility and risk.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -14,264 +12,364 @@
 <title>LNO Privilege Compliance Scanner</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <script>
-// Load Tailwind from local file (air-gapped support), fallback to CDN
-(function() {
-  var s = document.createElement('script');
-  s.src = 'tailwind.min.js';
-  s.onerror = function() {
-    var c = document.createElement('script');
-    c.src = 'https://cdn.tailwindcss.com';
-    document.head.appendChild(c);
-  };
-  document.head.appendChild(s);
-})();
+(function(){var s=document.createElement('script');s.src='tailwind.min.js';s.onerror=function(){var c=document.createElement('script');c.src='https://cdn.tailwindcss.com';document.head.appendChild(c)};document.head.appendChild(s)})();
 </script>
-<script>tailwind.config={theme:{extend:{colors:{dark:{50:'#f8fafc',100:'#f1f5f9',200:'#e2e8f0',300:'#cbd5e1',400:'#94a3b8',500:'#64748b',600:'#475569',700:'#334155',800:'#1e293b',900:'#0f172a',950:'#020617'}}}}}</script>
 <style>
-* { box-sizing:border-box; }
-body { background:#0f172a; color:#e2e8f0; font-family:system-ui,-apple-system,sans-serif; margin:0; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:#0b0f1a; color:#e2e8f0; font-family:'Inter',system-ui,-apple-system,sans-serif; min-height:100vh; }
+.glass { background:rgba(30,41,59,0.6); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(51,65,85,0.4); }
+.glass-card { background:rgba(30,41,59,0.5); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1px solid rgba(51,65,85,0.3); border-radius:16px; transition:all .3s ease; }
+.glass-card:hover { transform:translateY(-2px); border-color:rgba(99,102,241,0.3); box-shadow:0 8px 32px rgba(0,0,0,0.3); }
+.gradient-border { position:relative; border-radius:16px; }
+.gradient-border::before { content:''; position:absolute; inset:-1px; border-radius:17px; background:linear-gradient(135deg,rgba(99,102,241,0.3),rgba(139,92,246,0.1),transparent); z-index:-1; }
+.gauge-ring { transition:stroke-dashoffset 1.5s ease-out; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+@keyframes slideUp { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
+@keyframes pulse-glow { 0%,100% { box-shadow:0 0 20px rgba(99,102,241,0.1); } 50% { box-shadow:0 0 40px rgba(99,102,241,0.2); } }
+.animate-in { animation:fadeIn .6s ease-out forwards; }
+.animate-slide { animation:slideUp .5s ease-out forwards; }
+.delay-1 { animation-delay:.1s; } .delay-2 { animation-delay:.2s; } .delay-3 { animation-delay:.3s; }
+.delay-4 { animation-delay:.4s; } .delay-5 { animation-delay:.5s; } .delay-6 { animation-delay:.6s; }
+.stat-card { padding:20px; border-radius:16px; text-align:center; cursor:pointer; }
+.stat-card .value { font-size:2.2rem; font-weight:800; line-height:1; margin-top:4px; }
+.stat-card .label { font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; color:#64748b; font-weight:600; }
 table { width:100%; border-collapse:collapse; }
-th { background:#1e293b; padding:7px 10px; text-align:left; font-weight:600; color:#94a3b8; border-bottom:2px solid #334155; font-size:.72rem; position:sticky; top:0; z-index:2; white-space:nowrap; }
-td { padding:5px 10px; border-bottom:1px solid #1e293b; font-size:.78rem; }
-tr:hover td { background:rgba(30,41,59,0.6); }
-.tab { padding:9px 16px; border-radius:8px 8px 0 0; font-weight:500; cursor:pointer; transition:.2s; font-size:.8rem; white-space:nowrap; }
-.tab.active { background:#1e293b; color:#60a5fa; }
-.tab:not(.active) { color:#64748b; }
-.tab:not(.active):hover { color:#94a3b8; background:rgba(30,41,59,0.4); }
-.panel { display:none; }
+th { background:rgba(15,23,42,0.6); padding:8px 12px; text-align:left; font-weight:600; color:#94a3b8; border-bottom:2px solid rgba(51,65,85,0.5); font-size:.72rem; position:sticky; top:0; z-index:2; white-space:nowrap; cursor:pointer; user-select:none; }
+th:hover { color:#e2e8f0; }
+td { padding:6px 12px; border-bottom:1px solid rgba(30,41,59,0.6); font-size:.78rem; }
+tr:hover td { background:rgba(99,102,241,0.04); }
+.tab-btn { padding:10px 20px; border-radius:10px 10px 0 0; font-weight:500; cursor:pointer; transition:.2s; font-size:.8rem; white-space:nowrap; color:#64748b; }
+.tab-btn:hover { color:#94a3b8; background:rgba(30,41,59,0.3); }
+.tab-btn.active { color:#818cf8; background:rgba(30,41,59,0.8); }
+.panel { display:none; animation:fadeIn .3s ease-out; }
 .panel.active { display:block; }
-.badge { padding:2px 7px; border-radius:4px; font-size:.68rem; font-weight:600; white-space:nowrap; }
-.bg-critical { background:rgba(239,68,68,0.25); color:#f87171; }
-.bg-high { background:rgba(249,115,22,0.2); color:#fb923c; }
-.bg-medium { background:rgba(234,179,8,0.2); color:#facc15; }
-.bg-low { background:rgba(59,130,246,0.2); color:#60a5fa; }
-.bg-info { background:rgba(100,116,139,0.2); color:#94a3b8; }
-.bg-green { background:rgba(34,197,94,0.2); color:#4ade80; }
-.bg-red { background:rgba(239,68,68,0.2); color:#f87171; }
-.bg-yellow { background:rgba(234,179,8,0.2); color:#facc15; }
-.bg-gray { background:rgba(100,116,139,0.2); color:#94a3b8; }
-::-webkit-scrollbar { width:5px; height:5px; }
-::-webkit-scrollbar-thumb { background:#334155; border-radius:3px; }
-::-webkit-scrollbar-track { background:#0f172a; }
-.mono { font-family:'JetBrains Mono','Consolas','Courier New',monospace; font-size:.75rem; }
-.card { background:#1e293b; border-radius:12px; padding:16px; }
+.badge { padding:2px 8px; border-radius:6px; font-size:.68rem; font-weight:600; white-space:nowrap; }
+.badge-critical { background:rgba(239,68,68,0.2); color:#f87171; }
+.badge-high { background:rgba(249,115,22,0.18); color:#fb923c; }
+.badge-medium { background:rgba(234,179,8,0.18); color:#facc15; }
+.badge-low { background:rgba(59,130,246,0.18); color:#60a5fa; }
+.badge-info { background:rgba(100,116,139,0.2); color:#94a3b8; }
+.badge-green { background:rgba(34,197,94,0.18); color:#4ade80; }
+.badge-red { background:rgba(239,68,68,0.2); color:#f87171; }
+.badge-yellow { background:rgba(234,179,8,0.18); color:#facc15; }
+.badge-gray { background:rgba(100,116,139,0.18); color:#94a3b8; }
+.badge-indigo { background:rgba(99,102,241,0.18); color:#818cf8; }
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-thumb { background:rgba(51,65,85,0.6); border-radius:3px; }
+::-webkit-scrollbar-track { background:#0b0f1a; }
+.mono { font-family:'JetBrains Mono','Consolas','Courier New',monospace; }
+#printBtn { transition:all .2s; }
+#printBtn:hover { background:rgba(99,102,241,0.15); border-color:rgba(99,102,241,0.3); color:#818cf8; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.spinner { display:inline-block; width:16px; height:16px; border:2px solid rgba(99,102,241,0.3); border-top-color:#818cf8; border-radius:50%; animation:spin .6s linear infinite; }
 @media print {
-  body { background:#fff; color:#000; }
-  .card, .rounded-xl, .rounded-lg, [style*="background"] { background:#f8fafc !important; border:1px solid #ddd !important; }
-  .tab, .tab.active { background:#f1f5f9 !important; color:#000 !important; }
-  th { background:#f1f5f9 !important; color:#000 !important; border-bottom:1px solid #ccc !important; }
-  td { color:#000 !important; border-bottom:1px solid #eee !important; }
+  body { background:#fff !important; color:#000 !important; }
+  .glass,.glass-card,.gradient-border { background:#f8fafc !important; border:1px solid #ddd !important; backdrop-filter:none !important; }
+  th { background:#f1f5f9 !important; color:#000 !important; }
+  td { color:#333 !important; }
   .badge { border:1px solid #ccc !important; }
-  #refreshBtn, .flex.items-center.gap-3 .gap-1\\.5, .flex.items-center.gap-3 .gap-1\.5, .flex.items-center.gap-3 button:not(.tab) { display:none !important; }
-  [style*="cursor:pointer"] { cursor:default !important; }
+  #printBtn,.no-print { display:none !important; }
   .max-h-\[520px\] { max-height:none !important; overflow:visible !important; }
   .max-h-\[200px\] { max-height:none !important; overflow:visible !important; }
-  .mono { color:#333 !important; }
-  #modalOverlay { display:none !important; }
+  .overlay { display:none !important; }
 }
 </style>
 </head>
 <body>
 
-<div class="max-w-7xl mx-auto px-5 py-4">
+<!-- ===== EXECUTIVE VIEW ===== -->
+<div id="executiveView" class="max-w-7xl mx-auto px-6 py-6">
+
   <!-- Header -->
-  <div class="flex items-center justify-between mb-3">
+  <div class="flex items-center justify-between mb-8 animate-in">
     <div class="flex items-center gap-4">
-      <img src="logo.svg" alt="LNO" class="h-11 w-auto" style="filter:drop-shadow(0 0 14px rgba(56,189,248,0.25))">
+      <img src="logo.svg" alt="LNO" class="h-12 w-auto" style="filter:drop-shadow(0 0 20px rgba(99,102,241,0.3))">
       <div>
-        <h1 class="text-lg font-bold text-white tracking-wider">LNO</h1>
-        <div class="text-xs text-slate-500 mt-0.5" id="subtitle">Privilege Compliance Scanner — ISO 27001</div>
+        <div class="flex items-center gap-3">
+          <h1 class="text-xl font-bold text-white tracking-tight">LNO</h1>
+          <span class="text-[.6rem] font-semibold uppercase tracking-widest px-2.5 py-1 rounded-full" style="background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(139,92,246,0.1));color:#818cf8;border:1px solid rgba(99,102,241,0.2)">Enterprise</span>
+        </div>
+        <div class="text-xs text-slate-500 mt-0.5" id="execSubtitle">Privilege Compliance Scanner — ISO 27001:2022</div>
       </div>
     </div>
     <div class="flex items-center gap-3">
-      <div class="flex items-center gap-1.5 text-xs text-yellow-600 border border-yellow-800/40 rounded-lg px-2.5 py-1.5" style="background:rgba(234,179,8,0.06)">
-        <span>&#9888;</span>
-        <span>Localhost only — do not expose port 9090</span>
-      </div>
-      <span class="text-xs text-slate-500" id="lastScan"></span>
-      <div class="flex gap-1.5">
-        <button onclick="exportCSV('findings')" class="px-3 py-2 rounded-lg text-xs font-medium transition-all hover:opacity-90" style="background:#1e293b;color:#94a3b8;border:1px solid #334155">&#x21E9; Findings</button>
-        <button onclick="exportCSV('compliance')" class="px-3 py-2 rounded-lg text-xs font-medium transition-all hover:opacity-90" style="background:#1e293b;color:#94a3b8;border:1px solid #334155">&#x21E9; Compliance</button>
-        <button onclick="exportCSV('processes')" class="px-3 py-2 rounded-lg text-xs font-medium transition-all hover:opacity-90" style="background:#1e293b;color:#94a3b8;border:1px solid #334155">&#x21E9; Processes</button>
-        <button onclick="window.print()" class="px-3 py-2 rounded-lg text-xs font-medium transition-all hover:opacity-90" style="background:#1e293b;color:#94a3b8;border:1px solid #334155">&#x1F5A8; Print PDF</button>
-      </div>
-      <button id="refreshBtn" onclick="triggerScan()" class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90" style="background:#2563eb;color:#fff">
+      <span class="text-xs text-slate-600" id="execLastScan"></span>
+      <button onclick="window.print()" id="printBtn" class="px-3.5 py-2 rounded-xl text-xs font-medium transition-all" style="background:rgba(30,41,59,0.5);color:#94a3b8;border:1px solid rgba(51,65,85,0.4)">&#x1F5A8; Export PDF</button>
+      <button id="refreshBtn" onclick="triggerScan()" class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 16px rgba(99,102,241,0.25)">
         <span id="btnIcon">&#x21bb;</span>
-        <span id="btnText">Refresh</span>
+        <span id="btnText">Refresh Scan</span>
       </button>
     </div>
   </div>
 
-  <!-- Score + Key Stats -->
-  <div class="grid grid-cols-7 gap-2.5 mb-4">
-    <div class="card col-span-1 text-center" style="cursor:pointer" onclick="showModal('Risk Score Breakdown', stores.findings, ['Severity','Type','Title'], f => '<td><span class=\'badge bg-'+f.severity+'\'>'+f.severity.toUpperCase()+'</span></td><td class=\'mono text-xs text-slate-400\'>'+f.type+'</td><td class=\'text-xs text-slate-300\'>'+f.title+'</td>')">
-      <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">Risk Score</div>
-      <div class="text-3xl font-bold" id="statScore">-</div>
+  <!-- Hero: Score Gauge + Summary -->
+  <div class="grid grid-cols-5 gap-6 mb-8 animate-slide delay-1">
+    <!-- Gauge -->
+    <div class="col-span-2 glass-card p-6 flex items-center justify-center gradient-border" style="min-height:220px">
+      <div class="text-center">
+        <svg width="180" height="180" viewBox="0 0 180 180">
+          <defs>
+            <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#6366f1"/>
+              <stop offset="50%" stop-color="#8b5cf6"/>
+              <stop offset="100%" stop-color="#a78bfa"/>
+            </linearGradient>
+          </defs>
+          <circle cx="90" cy="90" r="78" fill="none" stroke="rgba(51,65,85,0.4)" stroke-width="10"/>
+          <circle id="scoreRing" cx="90" cy="90" r="78" fill="none" stroke="url(#gaugeGrad)" stroke-width="10" stroke-linecap="round" transform="rotate(-90 90 90)" stroke-dasharray="490.09" stroke-dashoffset="490.09" class="gauge-ring"/>
+          <circle cx="90" cy="90" r="65" fill="rgba(15,23,42,0.4)"/>
+          <text x="90" y="82" text-anchor="middle" fill="#e2e8f0" font-size="42" font-weight="800" font-family="'Inter',sans-serif" id="gaugeScore">--</text>
+          <text x="90" y="108" text-anchor="middle" fill="#64748b" font-size="13" font-weight="500" font-family="'Inter',sans-serif">/ 100</text>
+          <text x="90" y="135" text-anchor="middle" fill="#f87171" font-size="11" font-weight="600" font-family="'Inter',sans-serif" id="gaugeLabel">Loading...</text>
+        </svg>
+        <div class="mt-1 text-xs text-slate-600">Executive Posture Score</div>
+      </div>
     </div>
-    <div class="card col-span-1 text-center" style="cursor:pointer" onclick="showModal('Critical Findings', stores.findings.filter(f=>f.severity==='critical'), ['Type','Title','Detail'], f => '<td class=\'mono text-xs text-slate-400\'>'+f.type+'</td><td class=\'text-xs text-slate-300\'>'+f.title+'</td><td class=\'text-xs text-slate-400 max-w-[250px] truncate\'>'+(f.detail||'-')+'</td>')">
-      <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">Critical</div>
-      <div class="text-3xl font-bold text-red-400" id="statCritical">-</div>
-    </div>
-    <div class="card col-span-1 text-center" style="cursor:pointer" onclick="showModal('High Findings', stores.findings.filter(f=>f.severity==='high'), ['Type','Title','Detail'], f => '<td class=\'mono text-xs text-slate-400\'>'+f.type+'</td><td class=\'text-xs text-slate-300\'>'+f.title+'</td><td class=\'text-xs text-slate-400 max-w-[250px] truncate\'>'+(f.detail||'-')+'</td>')">
-      <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">High</div>
-      <div class="text-3xl font-bold text-orange-400" id="statHigh">-</div>
-    </div>
-    <div class="card col-span-1 text-center" style="cursor:pointer" onclick="showModal('Medium Findings', stores.findings.filter(f=>f.severity==='medium'), ['Type','Title','Detail'], f => '<td class=\'mono text-xs text-slate-400\'>'+f.type+'</td><td class=\'text-xs text-slate-300\'>'+f.title+'</td><td class=\'text-xs text-slate-400 max-w-[250px] truncate\'>'+(f.detail||'-')+'</td>')">
-      <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">Medium</div>
-      <div class="text-3xl font-bold text-yellow-400" id="statMedium">-</div>
-    </div>
-    <div class="card col-span-1 text-center" style="cursor:pointer" onclick="showModal('Local Users ('+stores.localUsers.length+')', stores.localUsers, ['Name','Full Name','Enabled','Description'], u => '<td class=\'text-xs text-white font-medium\'>'+u.name+'</td><td class=\'text-xs text-slate-300\'>'+(u.full_name||'-')+'</td><td><span class=\'badge '+(u.enabled?'bg-green':'bg-gray')+'\'>'+(u.enabled?'Yes':'No')+'</span></td><td class=\'text-xs text-slate-400 max-w-[200px] truncate\'>'+(u.description||'-')+'</td>')">
-      <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">Users</div>
-      <div class="text-3xl font-bold text-white" id="statUsers">-</div>
-    </div>
-    <div class="card col-span-1 text-center" style="cursor:pointer" onclick="showModal('Processes ('+stores.processes.length+')', stores.processes, ['PID','Name','Parent App','Owner','Risk','Memory'], p => '<td class=\'mono text-xs text-slate-400\'>'+p.pid+'</td><td class=\'text-xs text-white\'>'+p.name+'</td><td class=\'text-xs text-slate-400\'>'+(p.parent_app||'Unknown')+'</td><td class=\'text-xs text-slate-300 truncate max-w-[100px]\'>'+(p.owner||'-')+'</td><td><span class=\'badge '+(p.risk_score>=50?'bg-critical':p.risk_score>=20?'bg-medium':p.risk_score>=1?'bg-low':'bg-gray')+'\'>'+p.risk_score+'</span></td><td class=\'mono text-xs text-slate-400\'>'+(p.memory_mb||0).toFixed(0)+' MB</td>')">
-      <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">Processes</div>
-      <div class="text-3xl font-bold text-white" id="statProcs">-</div>
-    </div>
-    <div class="card col-span-1 text-center" style="cursor:pointer" onclick="showModal('Services ('+stores.services.length+')', stores.services, ['Name','State','Start Type','User'], s => '<td class=\'text-xs text-white\'>'+s.name+'</td><td><span class=\'badge '+(s.state==='Running'?'bg-green':'bg-gray')+'\'>'+(s.state||'')+'</span></td><td class=\'text-xs text-slate-400\'>'+(s.start_mode||'')+'</td><td class=\'text-xs text-slate-400\'>'+(s.start_name||'')+'</td>')">
-      <div class="text-xs text-slate-500 uppercase tracking-wider mb-1">Services</div>
-      <div class="text-3xl font-bold text-white" id="statSvcs">-</div>
-    </div>
-  </div>
-
-  <!-- Tabs -->
-  <div class="flex gap-1 mb-0 border-b border-slate-800 overflow-x-auto" id="tabBar">
-    <div class="tab active" data-tab="findings">Findings <span id="findingBadge" class="badge bg-critical ml-1" style="display:none">0</span></div>
-    <div class="tab" data-tab="user">User &amp; Access</div>
-    <div class="tab" data-tab="compliance">Compliance</div>
-    <div class="tab" data-tab="processes">Process Risk</div>
-    <div class="tab" data-tab="services">Services</div>
-    <div class="tab" data-tab="access">Access Control</div>
-    <div class="tab" data-tab="history">Risk Config</div>
-  </div>
-
-  <!-- Panel: Findings -->
-  <div id="panel-findings" class="panel active">
-    <div class="rounded-b-xl overflow-hidden" style="background:#1e293b">
-      <div class="p-3 border-b border-slate-800 flex items-center gap-3">
-        <span class="text-sm font-medium text-slate-300">Security Findings</span>
-        <div class="flex gap-1.5 ml-auto" id="findingFilters">
-          <span class="badge bg-critical cursor-pointer" data-sev="critical" onclick="filterFindings('critical')">Critical</span>
-          <span class="badge bg-high cursor-pointer" data-sev="high" onclick="filterFindings('high')">High</span>
-          <span class="badge bg-medium cursor-pointer" data-sev="medium" onclick="filterFindings('medium')">Medium</span>
-          <span class="badge bg-info cursor-pointer" data-sev="all" onclick="filterFindings('all')">All</span>
+    <!-- Summary -->
+    <div class="col-span-3 glass-card p-6 flex flex-col justify-between gradient-border">
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-widest text-indigo-400 mb-2">Endpoint Security Summary</div>
+        <div class="text-sm text-slate-400 leading-relaxed" id="execSummary">Loading scan data...</div>
+      </div>
+      <div class="flex gap-4 mt-4 pt-4" style="border-top:1px solid rgba(51,65,85,0.3)">
+        <div class="flex-1 text-center">
+          <div class="text-xs text-slate-500 uppercase tracking-wider">Compliant</div>
+          <div class="text-lg font-bold text-emerald-400 mt-0.5" id="execCompliant">--</div>
+        </div>
+        <div class="flex-1 text-center">
+          <div class="text-xs text-slate-500 uppercase tracking-wider">Non-Compliant</div>
+          <div class="text-lg font-bold text-red-400 mt-0.5" id="execNonCompliant">--</div>
+        </div>
+        <div class="flex-1 text-center">
+          <div class="text-xs text-slate-500 uppercase tracking-wider">Not Assessed</div>
+          <div class="text-lg font-bold text-slate-500 mt-0.5" id="execNotAssessed">--</div>
         </div>
       </div>
-      <div id="findingBody" class="p-3 text-sm text-slate-400">Loading...</div>
     </div>
   </div>
 
-  <!-- Panel: User & Access -->
-  <div id="panel-user" class="panel">
-    <div class="rounded-b-xl overflow-hidden" style="background:#1e293b">
-      <div class="p-3 border-b border-slate-800">
-        <span class="text-sm font-medium text-slate-300">User &amp; Privilege Analysis</span>
-        <p class="text-xs text-slate-500 mt-1">Current user, group memberships, and effective privileges. Highlights excessive or dangerous permissions.</p>
-      </div>
-      <div class="p-4" id="userBody">Loading...</div>
+  <!-- Metric Cards -->
+  <div class="grid grid-cols-5 gap-4 mb-8">
+    <div class="stat-card glass-card animate-slide delay-2" onclick="openDetail('findings')">
+      <div class="label">Critical Findings</div>
+      <div class="value text-red-400" id="statCritical">--</div>
+    </div>
+    <div class="stat-card glass-card animate-slide delay-3" onclick="openDetail('findings')">
+      <div class="label">High Findings</div>
+      <div class="value text-orange-400" id="statHigh">--</div>
+    </div>
+    <div class="stat-card glass-card animate-slide delay-4" onclick="openDetail('access')">
+      <div class="label">User Accounts</div>
+      <div class="value text-sky-400" id="statUsers">--</div>
+    </div>
+    <div class="stat-card glass-card animate-slide delay-5" onclick="openDetail('processes')">
+      <div class="label">Processes</div>
+      <div class="value text-white" id="statProcs">--</div>
+    </div>
+    <div class="stat-card glass-card animate-slide delay-6" onclick="openDetail('services')">
+      <div class="label">Services</div>
+      <div class="value text-white" id="statSvcs">--</div>
     </div>
   </div>
 
-  <!-- Panel: Compliance -->
-  <div id="panel-compliance" class="panel">
-    <div class="rounded-b-xl overflow-hidden" style="background:#1e293b">
-      <div class="p-3 border-b border-slate-800">
-        <span class="text-sm font-medium text-slate-300">ISO 27001 Compliance</span>
-        <p class="text-xs text-slate-500 mt-1">Control-by-control assessment based on scanned findings. Non-compliant controls show gaps that need remediation.</p>
+  <!-- Bottom: Quick Compliance + View Details -->
+  <div class="grid grid-cols-5 gap-6 animate-slide delay-4">
+    <div class="col-span-3 glass-card p-5 gradient-border">
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-xs font-semibold uppercase tracking-widest text-slate-400">ISO 27001:2022 Compliance</div>
+        <div class="text-xs text-slate-600">93 Annex A Controls</div>
       </div>
-      <div class="p-4" id="complianceBody">Loading...</div>
+      <div class="flex items-center gap-1 mb-3" id="complianceBar"></div>
+      <div class="flex gap-4 text-xs text-slate-500" id="complianceLegend"></div>
+    </div>
+    <div class="col-span-2 glass-card p-5 flex flex-col items-center justify-center gradient-border" style="cursor:pointer" onclick="openDetail()">
+      <div class="text-3xl mb-2 opacity-60" style="color:#818cf8">&#x2191;&#x2199;</div>
+      <div class="text-sm font-semibold text-indigo-400">View Full Report</div>
+      <div class="text-xs text-slate-500 mt-1">Detailed findings, compliance, processes &amp; more</div>
     </div>
   </div>
 
-  <!-- Panel: Process Risk -->
-  <div id="panel-processes" class="panel">
-    <div class="rounded-b-xl overflow-hidden" style="background:#1e293b">
-      <div class="p-3 flex items-center gap-3 border-b border-slate-800">
-        <span class="text-sm font-medium text-slate-300">Process Risk Assessment</span>
-        <input id="searchProc" type="text" placeholder="Filter..." oninput="renderProcesses()" class="ml-auto px-3 py-1.5 rounded-md text-xs border" style="background:#0f172a;color:#e2e8f0;border-color:#334155;width:200px">
-        <span class="text-xs text-slate-500" id="procCount" style="cursor:pointer"></span>
-      </div>
-      <div class="max-h-[520px] overflow-y-auto">
-        <table>
-          <thead><tr><th onclick="sortBy('processes','risk_score')" style="cursor:pointer">Risk<span id="sort-processes-risk_score"></span></th><th onclick="sortBy('processes','pid')" style="cursor:pointer">PID<span id="sort-processes-pid"></span></th><th onclick="sortBy('processes','name')" style="cursor:pointer">Name<span id="sort-processes-name"></span></th><th onclick="sortBy('processes','parent_app')" style="cursor:pointer">Parent App<span id="sort-processes-parent_app"></span></th><th onclick="sortBy('processes','owner')" style="cursor:pointer">Owner<span id="sort-processes-owner"></span></th><th onclick="sortBy('processes','is_signed')" style="cursor:pointer">Signed<span id="sort-processes-is_signed"></span></th><th onclick="sortBy('processes','memory_mb')" style="cursor:pointer">Memory<span id="sort-processes-memory_mb"></span></th><th onclick="sortBy('processes','has_network')" style="cursor:pointer">Network<span id="sort-processes-has_network"></span></th><th>Reasons</th></tr></thead>
-          <tbody id="procBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Panel: Services -->
-  <div id="panel-services" class="panel">
-    <div class="rounded-b-xl overflow-hidden" style="background:#1e293b">
-      <div class="p-3 flex items-center gap-3 border-b border-slate-800">
-        <span class="text-sm font-medium text-slate-300">Running Services</span>
-        <input id="searchSvc" type="text" placeholder="Filter..." oninput="renderServices()" class="ml-auto px-3 py-1.5 rounded-md text-xs border" style="background:#0f172a;color:#e2e8f0;border-color:#334155;width:200px">
-        <span class="text-xs text-slate-500" id="svcCount" style="cursor:pointer"></span>
-      </div>
-      <div class="max-h-[520px] overflow-y-auto">
-        <table>
-          <thead><tr><th onclick="sortBy('services','name')" style="cursor:pointer">Name<span id="sort-services-name"></span></th><th onclick="sortBy('services','parent_app')" style="cursor:pointer">Parent App<span id="sort-services-parent_app"></span></th><th onclick="sortBy('services','state')" style="cursor:pointer">State<span id="sort-services-state"></span></th><th onclick="sortBy('services','start_mode')" style="cursor:pointer">Start<span id="sort-services-start_mode"></span></th><th onclick="sortBy('services','start_name')" style="cursor:pointer">User<span id="sort-services-start_name"></span></th><th>Description</th></tr></thead>
-          <tbody id="svcBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Panel: Access Control -->
-  <div id="panel-access" class="panel">
-    <div class="rounded-b-xl overflow-hidden" style="background:#1e293b">
-      <div class="p-3 border-b border-slate-800">
-        <span class="text-sm font-medium text-slate-300">Access Control</span>
-        <p class="text-xs text-slate-500 mt-1">Local user accounts, group memberships, and file system ACLs on sensitive paths.</p>
-      </div>
-      <div class="p-4" id="accessBody">Loading...</div>
-    </div>
-  </div>
-
-  <!-- Panel: Risk Config -->
-  <div id="panel-history" class="panel">
-    <div class="rounded-b-xl overflow-hidden" style="background:#1e293b">
-      <div class="p-3 border-b border-slate-800">
-        <span class="text-sm font-medium text-slate-300">Risk Scoring Configuration</span>
-        <p class="text-xs text-slate-500 mt-1">Customize severity weights and finding type overrides via <code class="text-slate-300">risk-config.json</code>.</p>
-      </div>
-      <div class="p-4" id="historyBody">Loading...</div>
-    </div>
-  </div>
-</div>
-
-<!-- Footer -->
-<div class="max-w-7xl mx-auto px-5 pb-4 pt-1">
-  <div class="flex items-center justify-between text-xs text-slate-600 border-t border-slate-800 pt-3">
-    <span>LNO Privilege Compliance Scanner &mdash; <a href="https://github.com/dnislno" class="text-slate-500 hover:text-slate-300" target="_blank">github.com/dnislno</a></span>
+  <!-- Footer -->
+  <div class="flex items-center justify-between text-xs text-slate-700 mt-8 pt-4" style="border-top:1px solid rgba(51,65,85,0.3)">
+    <span>LNO Privilege Compliance Scanner &mdash; <a href="https://github.com/dnislno" class="text-slate-500 hover:text-slate-300 transition-colors" target="_blank">github.com/dnislno</a></span>
     <span class="text-slate-700">Provided "AS IS" &mdash; user assumes all risk</span>
   </div>
 </div>
 
-</body>
+<!-- ===== DETAIL OVERLAY ===== -->
+<div id="detailOverlay" class="overlay" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);overflow-y:auto">
+  <div class="max-w-7xl mx-auto px-6 py-5">
+    <!-- Detail Header -->
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <img src="logo.svg" alt="LNO" class="h-8 w-auto" style="filter:drop-shadow(0 0 12px rgba(99,102,241,0.2))">
+        <span class="text-sm font-bold text-white">LNO</span>
+        <span class="text-xs text-slate-500">|</span>
+        <span class="text-sm text-slate-400">Full Report</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="flex gap-1.5">
+          <button onclick="exportCSV('findings')" class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-80" style="background:rgba(30,41,59,0.6);color:#94a3b8;border:1px solid rgba(51,65,85,0.4)">&#x21E9; Findings</button>
+          <button onclick="exportCSV('compliance')" class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-80" style="background:rgba(30,41,59,0.6);color:#94a3b8;border:1px solid rgba(51,65,85,0.4)">&#x21E9; Compliance</button>
+          <button onclick="exportCSV('processes')" class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-80" style="background:rgba(30,41,59,0.6);color:#94a3b8;border:1px solid rgba(51,65,85,0.4)">&#x21E9; Processes</button>
+        </div>
+        <button onclick="closeDetail()" class="px-4 py-2 rounded-xl text-sm font-medium transition-all hover:bg-red-400/10" style="background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.2)">&#x2715; Close</button>
+      </div>
+    </div>
+
+    <!-- Detail Tabs -->
+    <div class="flex gap-1 mb-0 overflow-x-auto" style="border-bottom:1px solid rgba(51,65,85,0.3)" id="detailTabBar">
+      <div class="tab-btn active" data-tab="findings">Findings <span id="detailFindingBadge" class="badge badge-critical ml-1" style="display:none">0</span></div>
+      <div class="tab-btn" data-tab="user">User &amp; Access</div>
+      <div class="tab-btn" data-tab="compliance">Compliance</div>
+      <div class="tab-btn" data-tab="processes">Process Risk</div>
+      <div class="tab-btn" data-tab="services">Services</div>
+      <div class="tab-btn" data-tab="access">Access Control</div>
+      <div class="tab-btn" data-tab="config">Risk Config</div>
+    </div>
+
+    <!-- Panel: Findings -->
+    <div id="panel-findings" class="panel active">
+      <div class="rounded-b-xl overflow-hidden" style="background:rgba(15,23,42,0.6);border:1px solid rgba(51,65,85,0.3)">
+        <div class="p-4 flex items-center gap-3" style="border-bottom:1px solid rgba(51,65,85,0.3)">
+          <span class="text-sm font-semibold text-slate-200">Security Findings</span>
+          <div class="flex gap-1.5 ml-auto" id="findingFilters">
+            <span class="badge badge-critical cursor-pointer" data-sev="critical" onclick="filterFindings('critical')">Critical</span>
+            <span class="badge badge-high cursor-pointer" data-sev="high" onclick="filterFindings('high')">High</span>
+            <span class="badge badge-medium cursor-pointer" data-sev="medium" onclick="filterFindings('medium')">Medium</span>
+            <span class="badge badge-info cursor-pointer" data-sev="all" onclick="filterFindings('all')">All</span>
+          </div>
+        </div>
+        <div id="findingBody" class="p-4 text-sm text-slate-400 min-h-[200px]">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Panel: User -->
+    <div id="panel-user" class="panel">
+      <div class="rounded-b-xl overflow-hidden" style="background:rgba(15,23,42,0.6);border:1px solid rgba(51,65,85,0.3)">
+        <div class="p-4" style="border-bottom:1px solid rgba(51,65,85,0.3)">
+          <span class="text-sm font-semibold text-slate-200">User &amp; Privilege Analysis</span>
+          <p class="text-xs text-slate-500 mt-1">Current user, group memberships, and effective privileges. Highlights excessive or dangerous permissions.</p>
+        </div>
+        <div class="p-4" id="userBody">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Panel: Compliance -->
+    <div id="panel-compliance" class="panel">
+      <div class="rounded-b-xl overflow-hidden" style="background:rgba(15,23,42,0.6);border:1px solid rgba(51,65,85,0.3)">
+        <div class="p-4" style="border-bottom:1px solid rgba(51,65,85,0.3)">
+          <span class="text-sm font-semibold text-slate-200">ISO 27001 Compliance</span>
+          <p class="text-xs text-slate-500 mt-1">Control-by-control assessment based on scanned findings. Non-compliant controls show gaps that need remediation.</p>
+        </div>
+        <div class="p-4" id="complianceBody">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Panel: Processes -->
+    <div id="panel-processes" class="panel">
+      <div class="rounded-b-xl overflow-hidden" style="background:rgba(15,23,42,0.6);border:1px solid rgba(51,65,85,0.3)">
+        <div class="p-4 flex items-center gap-3" style="border-bottom:1px solid rgba(51,65,85,0.3)">
+          <span class="text-sm font-semibold text-slate-200">Process Risk Assessment</span>
+          <input id="searchProc" type="text" placeholder="Filter by name, PID, owner..." oninput="renderProcesses()" class="ml-auto px-3 py-1.5 rounded-lg text-xs border" style="background:rgba(15,23,42,0.6);color:#e2e8f0;border-color:rgba(51,65,85,0.4);width:220px;outline:none">
+          <span class="text-xs text-slate-500 cursor-pointer hover:text-slate-300 transition-colors" id="procCount" onclick="showModal('All Processes ('+stores.processes.length+')', stores.processes.slice(0,200), ['PID','Name','Parent App','Owner','Risk Score','Memory','Network'], function(p){return '<td class=\'mono text-xs text-slate-400\'>'+p.pid+'</td><td class=\'text-xs text-white\'>'+p.name+'</td><td class=\'text-xs text-slate-400\'>'+(p.parent_app||'Unknown')+'</td><td class=\'text-xs text-slate-300 truncate max-w-[100px]\'>'+(p.owner||'-')+'</td><td><span class=\'badge '+(p.risk_score>=50?'badge-critical':p.risk_score>=20?'badge-medium':p.risk_score>=1?'badge-low':'badge-gray')+'\'>'+p.risk_score+'</span></td><td class=\'mono text-xs text-slate-400\'>'+(p.memory_mb||0).toFixed(0)+' MB</td><td>'+(p.has_network?'<span class=\'badge badge-yellow\'>Yes</span>':'<span class=\'badge badge-gray\'>No</span>')+'</td>';})"></span>
+        </div>
+        <div class="max-h-[520px] overflow-y-auto">
+          <table><thead><tr><th onclick="sortBy('processes','risk_score')">Risk<span id="sort-p-risk_score"></span></th><th onclick="sortBy('processes','pid')">PID<span id="sort-p-pid"></span></th><th onclick="sortBy('processes','name')">Name<span id="sort-p-name"></span></th><th onclick="sortBy('processes','parent_app')">Parent App<span id="sort-p-parent_app"></span></th><th onclick="sortBy('processes','owner')">Owner<span id="sort-p-owner"></span></th><th onclick="sortBy('processes','is_signed')">Signed<span id="sort-p-is_signed"></span></th><th onclick="sortBy('processes','memory_mb')">Memory<span id="sort-p-memory_mb"></span></th><th onclick="sortBy('processes','has_network')">Network<span id="sort-p-has_network"></span></th><th>Reasons</th></tr></thead>
+          <tbody id="procBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: Services -->
+    <div id="panel-services" class="panel">
+      <div class="rounded-b-xl overflow-hidden" style="background:rgba(15,23,42,0.6);border:1px solid rgba(51,65,85,0.3)">
+        <div class="p-4 flex items-center gap-3" style="border-bottom:1px solid rgba(51,65,85,0.3)">
+          <span class="text-sm font-semibold text-slate-200">Running Services</span>
+          <input id="searchSvc" type="text" placeholder="Filter..." oninput="renderServices()" class="ml-auto px-3 py-1.5 rounded-lg text-xs border" style="background:rgba(15,23,42,0.6);color:#e2e8f0;border-color:rgba(51,65,85,0.4);width:200px;outline:none">
+          <span class="text-xs text-slate-500 cursor-pointer hover:text-slate-300 transition-colors" id="svcCount" onclick="showModal('All Services ('+stores.services.length+')', stores.services, ['Name','Parent App','State','Start Type','User','Description'], function(s){return '<td class=\'text-xs text-white\'>'+s.name+'</td><td class=\'text-xs text-slate-400\'>'+(s.parent_app||'Unknown')+'</td><td><span class=\'badge '+(s.state==='Running'?'badge-green':'badge-gray')+'\'>'+(s.state||'')+'</span></td><td class=\'text-xs text-slate-400\'>'+(s.start_mode||'')+'</td><td class=\'text-xs text-slate-400\'>'+(s.start_name||'')+'</td><td class=\'text-xs text-slate-500 max-w-[250px]\'>'+(s.description||s.display_name||'')+'</td>';})"></span>
+        </div>
+        <div class="max-h-[520px] overflow-y-auto">
+          <table><thead><tr><th onclick="sortBy('services','name')">Name<span id="sort-s-name"></span></th><th onclick="sortBy('services','parent_app')">Parent App<span id="sort-s-parent_app"></span></th><th onclick="sortBy('services','state')">State<span id="sort-s-state"></span></th><th onclick="sortBy('services','start_mode')">Start<span id="sort-s-start_mode"></span></th><th onclick="sortBy('services','start_name')">User<span id="sort-s-start_name"></span></th><th>Description</th></tr></thead>
+          <tbody id="svcBody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: Access Control -->
+    <div id="panel-access" class="panel">
+      <div class="rounded-b-xl overflow-hidden" style="background:rgba(15,23,42,0.6);border:1px solid rgba(51,65,85,0.3)">
+        <div class="p-4" style="border-bottom:1px solid rgba(51,65,85,0.3)">
+          <span class="text-sm font-semibold text-slate-200">Access Control</span>
+          <p class="text-xs text-slate-500 mt-1">Local user accounts, group memberships, and file system ACLs on sensitive paths.</p>
+        </div>
+        <div class="p-4" id="accessBody">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Panel: Risk Config -->
+    <div id="panel-config" class="panel">
+      <div class="rounded-b-xl overflow-hidden" style="background:rgba(15,23,42,0.6);border:1px solid rgba(51,65,85,0.3)">
+        <div class="p-4" style="border-bottom:1px solid rgba(51,65,85,0.3)">
+          <span class="text-sm font-semibold text-slate-200">Risk Scoring Configuration</span>
+          <p class="text-xs text-slate-500 mt-1">Customize severity weights and finding type overrides via <code class="text-slate-300">risk-config.json</code>.</p>
+        </div>
+        <div class="p-4" id="configBody">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL ===== -->
+<div id="modalOverlay" class="overlay" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.8);backdrop-filter:blur(6px);padding:40px;overflow-y:auto" onclick="closeModal(event)">
+  <div class="max-w-4xl mx-auto rounded-xl overflow-hidden" style="background:rgba(15,23,42,0.95);border:1px solid rgba(51,65,85,0.4);box-shadow:0 25px 60px rgba(0,0,0,0.5)">
+    <div class="flex items-center justify-between px-5 py-3" style="border-bottom:1px solid rgba(51,65,85,0.3)">
+      <span class="text-sm font-semibold text-white" id="modalTitle">Title</span>
+      <span onclick="closeModal()" style="cursor:pointer;color:#64748b;font-size:1.2rem;padding:4px 8px;border-radius:6px" class="hover:bg-slate-800 transition-colors">&#x2715;</span>
+    </div>
+    <div class="p-4 max-h-[70vh] overflow-y-auto" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- ===== PROCESS DETAIL MODAL ===== -->
+<div id="procModalOverlay" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.8);backdrop-filter:blur(6px);padding:40px;overflow-y:auto" onclick="if(event.target===this)closeProcModal()">
+  <div class="max-w-2xl mx-auto rounded-xl overflow-hidden" style="background:rgba(15,23,42,0.95);border:1px solid rgba(51,65,85,0.4);box-shadow:0 25px 60px rgba(0,0,0,0.5)">
+    <div class="flex items-center justify-between px-5 py-3" style="border-bottom:1px solid rgba(51,65,85,0.3)">
+      <span class="text-sm font-semibold text-white" id="procModalTitle">Process Detail</span>
+      <span onclick="closeProcModal()" style="cursor:pointer;color:#64748b;font-size:1.2rem;padding:4px 8px;border-radius:6px" class="hover:bg-slate-800 transition-colors">&#x2715;</span>
+    </div>
+    <div class="p-5" id="procModalBody"></div>
+  </div>
+</div>
 
 <script>
 let stores = { findings: [], overview: null, user: null, groups: [], privileges: [], compliance: [], processes: [], services: [], connections: [], localUsers: [], localGroups: [], groupMembers: [], aclEntries: [], riskConfig: null };
 let findingFilter = 'all';
 let sortState = { processes: { key: 'risk_score', asc: false }, services: { key: 'name', asc: true } };
+const circumference = 2 * Math.PI * 78;
 
-function sortBy(table, key) {
-  const s = sortState[table];
-  if (s.key === key) s.asc = !s.asc;
-  else { s.key = key; s.asc = true; }
-  if (table === 'processes') renderProcesses();
-  else if (table === 'services') renderServices();
+function openDetail(tab) {
+  document.getElementById('detailOverlay').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  if (tab) switchTab(tab);
 }
-function sortArrow(table, key) {
-  const s = sortState[table];
-  if (s.key !== key) return '';
-  return s.asc ? ' \u25B2' : ' \u25BC';
+function closeDetail() {
+  document.getElementById('detailOverlay').style.display = 'none';
+  document.body.style.overflow = '';
 }
+function switchTab(tab) {
+  document.querySelectorAll('#detailTabBar .tab-btn').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('#detailOverlay .panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tab));
+}
+document.querySelectorAll('#detailTabBar .tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
 
 function showModal(title, items, columns, renderRow) {
   document.getElementById('modalTitle').textContent = title;
   const body = document.getElementById('modalBody');
-  if (!items || !items.length) { body.innerHTML = '<div class="text-slate-500 text-sm p-4">No items</div>'; }
+  if (!items || !items.length) { body.innerHTML = '<div class="text-slate-500 text-sm p-4 text-center">No data available</div>'; }
   else {
     let h = '<table><thead><tr>' + columns.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
     items.forEach(i => { h += '<tr>' + renderRow(i) + '</tr>'; });
@@ -281,7 +379,44 @@ function showModal(title, items, columns, renderRow) {
   document.getElementById('modalOverlay').style.display = 'flex';
 }
 function closeModal(e) { if (e && e.target !== e.currentTarget) return; document.getElementById('modalOverlay').style.display = 'none'; }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeProcModal(); closeDetail(); } });
+
+function showProcDetail(pid) {
+  fetch('/api/processes/detail?pid=' + pid).then(r=>r.json()).then(d => {
+    const p = d.process;
+    if (!p) { document.getElementById('procModalBody').innerHTML = '<div class="text-slate-400 text-sm">Process not found</div>'; document.getElementById('procModalOverlay').style.display = 'flex'; return; }
+    const riskLabel = p.risk_score >= 50 ? 'HIGH' : p.risk_score >= 20 ? 'MEDIUM' : p.risk_score >= 1 ? 'LOW' : 'NONE';
+    const riskCls = p.risk_score >= 50 ? 'badge-critical' : p.risk_score >= 20 ? 'badge-medium' : p.risk_score >= 1 ? 'badge-low' : 'badge-gray';
+    const conns = (d.connections || []).slice(0, 20);
+    document.getElementById('procModalTitle').textContent = p.name + ' (PID ' + p.pid + ')';
+    let html = '<div class="grid grid-cols-2 gap-3 mb-4">' +
+      '<div class="glass-card p-3"><div class="text-xs text-slate-500">Risk Score</div><div class="text-lg font-bold text-white mt-1"><span class="badge ' + riskCls + '">' + p.risk_score + '</span> ' + riskLabel + '</div></div>' +
+      '<div class="glass-card p-3"><div class="text-xs text-slate-500">Owner</div><div class="text-sm font-medium text-white mt-1">' + (p.owner || 'N/A') + '</div></div>' +
+      '<div class="glass-card p-3"><div class="text-xs text-slate-500">Signed</div><div class="text-sm font-medium mt-1 ' + (p.is_signed ? 'text-emerald-400' : 'text-red-400') + '">' + (p.is_signed ? '&#10003; Verified' : '&#10007; Unsigned') + '</div></div>' +
+      '<div class="glass-card p-3"><div class="text-xs text-slate-500">Memory</div><div class="text-sm font-medium text-white mt-1">' + (p.memory_mb||0).toFixed(0) + ' MB</div></div>' +
+      '<div class="glass-card p-3"><div class="text-xs text-slate-500">Threads</div><div class="text-sm font-medium text-white mt-1">' + (p.thread_count||0) + '</div></div>' +
+      '<div class="glass-card p-3"><div class="text-xs text-slate-500">Network</div><div class="text-sm font-medium mt-1 ' + (p.has_network ? 'text-yellow-400' : 'text-slate-400') + '">' + (p.has_network ? 'Active Connections' : 'None') + '</div></div>' +
+      '</div>';
+    if (p.executable_path) html += '<div class="mb-3 glass-card p-3"><div class="text-xs text-slate-500 mb-1">Executable Path</div><div class="text-xs mono text-slate-300 break-all">' + p.executable_path + '</div></div>';
+    if (p.risk_reasons) html += '<div class="mb-3 glass-card p-3"><div class="text-xs text-slate-500 mb-1">Risk Reasons</div><div class="text-xs text-slate-300">' + p.risk_reasons + '</div></div>';
+    if (conns.length) {
+      html += '<div class="glass-card p-3"><div class="text-xs text-slate-500 mb-2">Network Connections (' + conns.length + ')</div><table><thead><tr><th>Protocol</th><th>Local</th><th>Remote</th><th>State</th></tr></thead><tbody>';
+      conns.forEach(c => { html += '<tr><td class="mono text-xs text-slate-400">' + (c.protocol||'') + '</td><td class="mono text-xs text-slate-400">' + (c.local_addr||'') + '</td><td class="mono text-xs text-slate-400">' + (c.remote_addr||'') + '</td><td class="text-xs text-slate-400">' + (c.state||'') + '</td></tr>'; });
+      html += '</tbody></table></div>';
+    }
+    document.getElementById('procModalBody').innerHTML = html;
+    document.getElementById('procModalOverlay').style.display = 'flex';
+  });
+}
+function closeProcModal() { document.getElementById('procModalOverlay').style.display = 'none'; }
+
+function sortBy(table, key) {
+  const s = sortState[table];
+  if (s.key === key) s.asc = !s.asc;
+  else { s.key = key; s.asc = true; }
+  if (table === 'processes') renderProcesses();
+  else if (table === 'services') renderServices();
+}
 
 async function fetchAll() {
   try {
@@ -312,43 +447,83 @@ async function fetchAll() {
       riskConfig: riskConfig && !riskConfig.error ? riskConfig : null,
     };
     renderAll();
-  } catch(e) { console.error(e); document.getElementById('findingBody').innerHTML = '<span class="text-red-400">Error loading data: ' + e.message + '</span>'; }
+  } catch(e) { console.error(e); document.getElementById('execSummary').textContent = 'Error loading data: ' + e.message; }
 }
 
 function renderAll() {
-  renderOverview();
+  const o = stores.overview;
+  if (!o) { document.getElementById('execSummary').innerHTML = '<span class="text-slate-500">No scan data available. Run <code class="text-slate-300">node scanner.js</code> first, or click Refresh.</span>'; return; }
+
+  // Gauge
+  const score = o.risk_score !== undefined ? o.risk_score : 100;
+  const circ = circumference;
+  const offset = circ - (score / 100) * circ;
+  const ring = document.getElementById('scoreRing');
+  if (ring) ring.style.strokeDashoffset = offset;
+  document.getElementById('gaugeScore').textContent = score;
+  const gaugeLabel = document.getElementById('gaugeLabel');
+  if (score >= 80) { gaugeLabel.textContent = 'LOW RISK'; gaugeLabel.style.fill = '#4ade80'; }
+  else if (score >= 50) { gaugeLabel.textContent = 'MODERATE RISK'; gaugeLabel.style.fill = '#facc15'; }
+  else if (score >= 30) { gaugeLabel.textContent = 'HIGH RISK'; gaugeLabel.style.fill = '#fb923c'; }
+  else { gaugeLabel.textContent = 'CRITICAL RISK'; gaugeLabel.style.fill = '#f87171'; }
+
+  // Severity counts
+  const s = o.severity_counts || { critical: 0, high: 0, medium: 0, low: 0 };
+  document.getElementById('statCritical').textContent = s.critical || 0;
+  document.getElementById('statHigh').textContent = s.high || 0;
+  document.getElementById('statProcs').textContent = stores.processes.length;
+  document.getElementById('statSvcs').textContent = stores.services.length;
+  document.getElementById('statUsers').textContent = stores.localUsers.length;
+
+  // Summary text
+  const nc = stores.compliance.filter(c => c.status === 'non_compliant').length;
+  const co = stores.compliance.filter(c => c.status === 'compliant').length;
+  const na = stores.compliance.filter(c => c.status === 'not_assessed').length;
+  document.getElementById('execSummary').innerHTML =
+    '<strong class="text-white">Risk Score: ' + score + '/100</strong> &mdash; ' +
+    stores.findings.length + ' findings detected (' +
+    '<span class="text-red-400">' + (s.critical||0) + ' critical</span>, ' +
+    '<span class="text-orange-400">' + (s.high||0) + ' high</span>, ' +
+    '<span class="text-yellow-400">' + (s.medium||0) + ' medium</span>). ' +
+    'ISO 27001:2022 compliance: <span class="text-emerald-400">' + co + ' compliant</span>, ' +
+    '<span class="text-red-400">' + nc + ' non-compliant</span>, ' +
+    '<span class="text-slate-500">' + na + ' not assessed</span>.';
+  document.getElementById('execCompliant').textContent = co;
+  document.getElementById('execNonCompliant').textContent = nc;
+  document.getElementById('execNotAssessed').textContent = na;
+  document.getElementById('execLastScan').textContent = o.finished_at ? 'Last scan: ' + new Date(o.finished_at).toLocaleString() : '';
+
+  // Compliance bar
+  const total = co + nc + na;
+  const bar = document.getElementById('complianceBar');
+  if (total > 0) {
+    bar.innerHTML =
+      (co > 0 ? '<div style="flex:' + co + ';height:10px;background:#4ade80;border-radius:5px 0 0 5px;min-width:2px" title="' + co + ' compliant"></div>' : '') +
+      (nc > 0 ? '<div style="flex:' + nc + ';height:10px;background:#f87171;border-radius:0;min-width:2px" title="' + nc + ' non-compliant"></div>' : '') +
+      (na > 0 ? '<div style="flex:' + na + ';height:10px;background:rgba(100,116,139,0.3);border-radius:0 5px 5px 0;min-width:2px" title="' + na + ' not assessed"></div>' : '');
+  }
+  document.getElementById('complianceLegend').innerHTML =
+    '<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#4ade80;margin-right:4px"></span> ' + co + ' Compliant</span>' +
+    '<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#f87171;margin-right:4px"></span> ' + nc + ' Non-Compliant</span>' +
+    '<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:rgba(100,116,139,0.3);margin-right:4px"></span> ' + na + ' Not Assessed</span>';
+
+  // Tab data
   renderFindings();
   renderUser();
   renderCompliance();
   renderProcesses();
   renderServices();
   renderAccess();
-  renderHistory();
-  document.getElementById('subtitle').innerHTML = stores.overview ? 'Score: <strong>' + stores.overview.risk_score + '</strong>/100 &middot; ' + stores.findings.length + ' findings &middot; ' +
-    stores.compliance.filter(c=>c.status==='non_compliant').length + ' of 93 Annex A controls non-compliant' : 'Privilege Compliance Scanner — ISO 27001';
-}
+  renderConfig();
+  document.getElementById('execSubtitle').innerHTML = 'Score: <strong>' + score + '</strong>/100 &middot; ' + stores.findings.length + ' findings &middot; ' + nc + ' of 93 Annex A controls non-compliant';
 
-function renderOverview() {
-  const o = stores.overview;
-  if (!o) return;
-  const score = o.risk_score !== undefined ? o.risk_score : 100;
-  const s = o.severity_counts || { critical: 0, high: 0, medium: 0, low: 0 };
-  document.getElementById('statScore').textContent = score;
-  document.getElementById('statScore').style.color = score >= 80 ? '#4ade80' : score >= 50 ? '#facc15' : '#f87171';
-  document.getElementById('statCritical').textContent = s.critical || 0;
-  document.getElementById('statHigh').textContent = s.high || 0;
-  document.getElementById('statMedium').textContent = s.medium || 0;
-  document.getElementById('statProcs').textContent = stores.processes.length;
-  document.getElementById('statSvcs').textContent = stores.services.length;
-  document.getElementById('statUsers').textContent = stores.localUsers.length;
-
-  const badge = document.getElementById('findingBadge');
-  const totalCritical = s.critical || 0;
-  if (totalCritical > 0) { badge.style.display = 'inline'; badge.textContent = totalCritical; badge.className = 'badge bg-critical ml-1'; }
-  else if (s.high > 0) { badge.style.display = 'inline'; badge.textContent = s.high; badge.className = 'badge bg-high ml-1'; }
+  // Badge
+  const badge = document.getElementById('detailFindingBadge');
+  if (s.critical > 0) { badge.style.display = 'inline'; badge.textContent = s.critical; badge.className = 'badge badge-critical ml-1'; }
+  else if (s.high > 0) { badge.style.display = 'inline'; badge.textContent = s.high; badge.className = 'badge badge-high ml-1'; }
   else { badge.style.display = 'none'; }
 
-  // Update finding filter counts
+  // Finding filters update
   document.querySelectorAll('#findingFilters .badge').forEach(el => {
     const sev = el.dataset.sev;
     const cnt = sev === 'all' ? stores.findings.length : stores.findings.filter(f => f.severity === sev).length;
@@ -358,19 +533,18 @@ function renderOverview() {
 
 function renderFindings() {
   const container = document.getElementById('findingBody');
-  if (!stores.findings.length) { container.innerHTML = '<div class="text-green-400">&#10003; No findings — system is well-configured</div>'; return; }
+  if (!stores.findings.length) { container.innerHTML = '<div class="text-emerald-400 text-center py-8"><span style="font-size:2rem">&#10003;</span><br>No findings — system is well-configured</div>'; return; }
   const filtered = findingFilter === 'all' ? stores.findings : stores.findings.filter(f => f.severity === findingFilter);
-  if (!filtered.length) { container.innerHTML = '<div class="text-slate-400">No ' + findingFilter + ' findings</div>'; return; }
+  if (!filtered.length) { container.innerHTML = '<div class="text-slate-400 text-center py-8">No ' + findingFilter + ' findings</div>'; return; }
   container.innerHTML = filtered.map(f => {
-    const sevClass = 'bg-' + f.severity;
-    return '<div class="mb-3 rounded-lg p-3" style="background:rgba(30,41,59,0.5);border-left:3px solid ' +
-      (f.severity === 'critical' ? '#ef4444' : f.severity === 'high' ? '#fb923c' : f.severity === 'medium' ? '#facc15' : '#60a5fa') + '">' +
-      '<div class="flex items-center gap-2 mb-1">' +
-      '<span class="badge ' + sevClass + '">' + f.severity.toUpperCase() + '</span>' +
-      '<span class="font-medium text-white text-sm">' + f.title + '</span>' +
-      '<span class="ml-auto text-xs text-slate-500">' + (f.iso || '') + '</span></div>' +
-      (f.detail ? '<div class="text-xs text-slate-400 ml-1 mb-1">' + f.detail + '</div>' : '') +
-      (f.remediation ? '<div class="text-xs text-slate-500 ml-1"><span class="text-slate-400">Remediation:</span> ' + f.remediation + '</div>' : '') +
+    const color = f.severity === 'critical' ? '#ef4444' : f.severity === 'high' ? '#fb923c' : f.severity === 'medium' ? '#facc15' : '#60a5fa';
+    return '<div class="mb-3 rounded-lg p-4" style="background:rgba(15,23,42,0.5);border-left:3px solid ' + color + '">' +
+      '<div class="flex items-center gap-2 mb-1 flex-wrap">' +
+      '<span class="badge badge-' + f.severity + '">' + f.severity.toUpperCase() + '</span>' +
+      '<span class="font-semibold text-white text-sm">' + f.title + '</span>' +
+      '<span class="ml-auto text-xs text-slate-600 mono">' + (f.iso || '') + '</span></div>' +
+      (f.detail ? '<div class="text-xs text-slate-400 ml-1 mb-1.5 leading-relaxed">' + f.detail + '</div>' : '') +
+      (f.remediation ? '<div class="text-xs text-slate-500 ml-1"><span class="text-indigo-400">Remediation:</span> ' + f.remediation + '</div>' : '') +
       '</div>';
   }).join('');
 }
@@ -380,121 +554,105 @@ function filterFindings(sev) { findingFilter = sev; renderFindings(); }
 function renderUser() {
   const container = document.getElementById('userBody');
   const u = stores.user;
-  if (!u || !u.user) { container.innerHTML = '<div class="text-slate-400">No user data</div>'; return; }
+  if (!u || !u.user) { container.innerHTML = '<div class="text-slate-400 text-center py-8">No user data</div>'; return; }
   const user = u.user;
   const isAdmin = user.is_admin;
   container.innerHTML =
-    '<div class="grid grid-cols-2 gap-3 mb-4">' +
-    '<div class="rounded-lg p-3" style="background:rgba(30,41,59,0.5)"><div class="text-xs text-slate-500">User</div><div class="text-sm text-white font-medium">' + (user.user_name || 'N/A') + '</div></div>' +
-    '<div class="rounded-lg p-3" style="background:rgba(30,41,59,0.5);cursor:pointer" onclick="showModal(\'Administrator Check\',[{\'k\':\'User\',\'v\':user.user_name||\'N/A\'},{\'k\':\'Is Admin\',\'v\':isAdmin?\'YES\':\'No\'},{\'k\':\'Note\',\'v\':isAdmin?\'Elevated risk — can modify security policy\':\'Standard user — limited privilege\'}],[\'Field\',\'Value\'],i=>\'<td class=\\\'text-xs text-slate-400\\\'>\'+i.k+\'</td><td class=\\\'text-xs \\\'+(i.v===\\\'YES\\\'?\\\'text-red-400 font-medium\\\':\\\'text-slate-300\\\')+\\\'>\'+i.v+\'</td>\')"><div class="text-xs text-slate-500">Administrator</div><div class="text-sm font-medium ' + (isAdmin ? 'text-red-400' : 'text-green-400') + '">' + (isAdmin ? 'YES - Elevated risk' : 'No (standard user)') + '</div></div>' +
-    '<div class="rounded-lg p-3" style="background:rgba(30,41,59,0.5)"><div class="text-xs text-slate-500">Auth Type</div><div class="text-sm text-white">' + (user.auth_type || 'N/A') + '</div></div>' +
-    '<div class="rounded-lg p-3" style="background:rgba(30,41,59,0.5);cursor:pointer" onclick="showModal(\'Group Memberships ('+stores.groups.length+')\', stores.groups, [\'Group Name\',\'SID\'], g => \'<td class=\\\'text-xs text-white\\\'>\'+(g.name||\'-\')+\'</td><td class=\\\'mono text-xs text-slate-400\\\'>\'+(g.sid||\'-\')+\'</td>\')"><div class="text-xs text-slate-500">Group Count</div><div class="text-sm text-white">' + (stores.groups.length || 0) + '</div></div>' +
+    '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">' +
+    '<div class="glass-card p-4"><div class="text-xs text-slate-500">User</div><div class="text-sm text-white font-semibold mt-1">' + (user.user_name || 'N/A') + '</div></div>' +
+    '<div class="glass-card p-4" style="cursor:pointer" onclick="showModal(\'Administrator Check\',[{\'k\':\'User\',\'v\':user.user_name||\'N/A\'},{\'k\':\'Is Admin\',\'v\':isAdmin?\'YES\':\'No\'},{\'k\':\'Note\',\'v\':isAdmin?\'Elevated risk\':\'Standard user\'}],[\'Field\',\'Value\'],i=>\'<td class=\\\'text-xs text-slate-400\\\'>\'+i.k+\'</td><td class=\\\'text-xs \\\'+(i.v===\\\'YES\\\'?\\\'text-red-400 font-medium\\\':\\\'text-slate-300\\\')+\\\'>\'+i.v+\'</td>\')"><div class="text-xs text-slate-500">Admin Status</div><div class="text-sm font-semibold mt-1 ' + (isAdmin ? 'text-red-400' : 'text-emerald-400') + '">' + (isAdmin ? 'YES - Elevated' : 'Standard User') + '</div></div>' +
+    '<div class="glass-card p-4"><div class="text-xs text-slate-500">Auth Type</div><div class="text-sm text-white font-semibold mt-1">' + (user.auth_type || 'N/A') + '</div></div>' +
+    '<div class="glass-card p-4" style="cursor:pointer" onclick="showModal(\'Group Memberships ('+stores.groups.length+')\', stores.groups, [\'Group Name\',\'SID\'], g => \'<td class=\\\'text-xs text-white\\\'>\'+(g.name||\'-\')+\'</td><td class=\\\'mono text-xs text-slate-400\\\'>\'+(g.sid||\'-\')+\'</td>\')"><div class="text-xs text-slate-500">Groups</div><div class="text-sm text-white font-semibold mt-1">' + stores.groups.length + '</div></div>' +
     '</div>';
 
-  // Security posture quick indicators
   const f = stores.findings;
   const uacDisabled = f.some(x => x.type === 'uac_disabled');
   const lsaNotProtected = f.some(x => x.type === 'lsa_not_protected');
   const weakPw = f.some(x => x.type === 'weak_password_policy');
   const noLockout = f.some(x => x.type === 'no_lockout_policy');
-  container.innerHTML += '<div class="mb-4"><div class="text-xs text-slate-500 uppercase tracking-wider mb-2">Security Posture</div>' +
-    '<div class="grid grid-cols-4 gap-2">' +
-    '<div class="rounded-lg p-2.5 text-center" style="background:rgba(30,41,59,0.4)"><div class="text-xs text-slate-500">UAC</div><span class="badge ' + (uacDisabled ? 'bg-red' : 'bg-green') + '">' + (uacDisabled ? 'DISABLED' : 'Enabled') + '</span></div>' +
-    '<div class="rounded-lg p-2.5 text-center" style="background:rgba(30,41,59,0.4)"><div class="text-xs text-slate-500">LSA Prot.</div><span class="badge ' + (lsaNotProtected ? 'bg-medium' : 'bg-green') + '">' + (lsaNotProtected ? 'Not PPL' : 'Protected') + '</span></div>' +
-    '<div class="rounded-lg p-2.5 text-center" style="background:rgba(30,41,59,0.4)"><div class="text-xs text-slate-500">Password</div><span class="badge ' + (weakPw ? 'bg-high' : 'bg-green') + '">' + (weakPw ? 'Weak policy' : '8+ chars') + '</span></div>' +
-    '<div class="rounded-lg p-2.5 text-center" style="background:rgba(30,41,59,0.4)"><div class="text-xs text-slate-500">Lockout</div><span class="badge ' + (noLockout ? 'bg-medium' : 'bg-green') + '">' + (noLockout ? 'Not set' : 'Configured') + '</span></div>' +
+  container.innerHTML += '<div class="mb-4"><div class="text-xs text-slate-500 uppercase tracking-wider mb-3 font-semibold">Security Posture</div>' +
+    '<div class="grid grid-cols-4 gap-3">' +
+    '<div class="glass-card p-3 text-center"><div class="text-xs text-slate-500 mb-1.5">UAC</div><span class="badge ' + (uacDisabled ? 'badge-red' : 'badge-green') + '">' + (uacDisabled ? 'DISABLED' : 'Enabled') + '</span></div>' +
+    '<div class="glass-card p-3 text-center"><div class="text-xs text-slate-500 mb-1.5">LSA Protection</div><span class="badge ' + (lsaNotProtected ? 'badge-medium' : 'badge-green') + '">' + (lsaNotProtected ? 'Not PPL' : 'Protected') + '</span></div>' +
+    '<div class="glass-card p-3 text-center"><div class="text-xs text-slate-500 mb-1.5">Password Policy</div><span class="badge ' + (weakPw ? 'badge-high' : 'badge-green') + '">' + (weakPw ? 'Weak' : '8+ chars') + '</span></div>' +
+    '<div class="glass-card p-3 text-center"><div class="text-xs text-slate-500 mb-1.5">Lockout</div><span class="badge ' + (noLockout ? 'badge-medium' : 'badge-green') + '">' + (noLockout ? 'Not set' : 'Configured') + '</span></div>' +
     '</div></div>';
 
   // Groups
-  let groupHtml = '<div class="mb-4"><div class="text-xs text-slate-500 uppercase tracking-wider mb-2">Group Memberships</div>';
+  container.innerHTML += '<div class="mb-4"><div class="text-xs text-slate-500 uppercase tracking-wider mb-2 font-semibold">Group Memberships</div><div class="flex flex-wrap gap-1.5">';
   const adminGroups = ['Administrators', 'S-1-5-32-544'];
-  groupHtml += stores.groups.map(g => {
+  stores.groups.forEach(g => {
     const isAdminGrp = adminGroups.includes(g.sid) || adminGroups.includes(g.name) || (g.name && g.name.endsWith('\\Administrators'));
-    return '<span class="badge mr-1 mb-1 ' + (isAdminGrp ? 'bg-critical' : 'bg-gray') + '">' + (g.name || g.sid) + '</span>';
-  }).join('') + '</div>';
-  container.innerHTML += groupHtml;
+    container.innerHTML += '<span class="badge ' + (isAdminGrp ? 'badge-critical' : 'badge-gray') + '">' + (g.name || g.sid) + '</span>';
+  });
+  container.innerHTML += '</div></div>';
 
   // Privileges
   const enabledPrivs = stores.privileges.filter(p => p.enabled);
-  container.innerHTML += '<div class="mb-2"><div class="text-xs text-slate-500 uppercase tracking-wider mb-2" style="cursor:pointer" onclick="showModal(\'Effective Privileges ('+enabledPrivs.length+')\', enabledPrivs, [\'Privilege\',\'Status\',\'Risk\'], p => \'<td class=\\\'mono text-xs text-white\\\'>\'+p.name+\'</td><td><span class=\\\'badge \'+(p.risk===\\\'high\\\'?\\\'bg-red\\\':\\\'bg-gray\\\')+\\\'>ENABLED</span></td><td class=\\\'text-xs text-slate-400\\\'>\'+(p.risk_note||\'-\')+\'</td>\')">Effective Privileges</div></div>';
-  container.innerHTML += '<div class="max-h-[200px] overflow-y-auto"><table><thead><tr><th>Privilege</th><th>Status</th><th>Risk Note</th></tr></thead><tbody>';
-  if (!enabledPrivs.length) container.innerHTML += '<tr><td colspan="3" class="text-slate-500">No enabled privileges</td></tr>';
-  else enabledPrivs.forEach(p => {
-    const riskCls = p.risk === 'high' ? 'bg-red' : 'bg-gray';
-    container.innerHTML += '<tr><td class="mono text-white text-xs">' + p.name + '</td><td><span class="badge ' + riskCls + '">ENABLED</span></td><td class="text-xs text-slate-400">' + (p.risk_note || '-') + '</td></tr>';
-  });
+  container.innerHTML += '<div class="mb-2"><div class="text-xs text-slate-500 uppercase tracking-wider mb-2 font-semibold" style="cursor:pointer" onclick="showModal(\'Effective Privileges ('+enabledPrivs.length+')\', enabledPrivs, [\'Privilege\',\'Status\',\'Risk\'], p => \'<td class=\\\'mono text-xs text-white\\\'>\'+p.name+\'</td><td><span class=\\\'badge \'+(p.risk===\\\'high\\\'?\\\'badge-red\\\':\\\'badge-gray\\\')+\\\'>ENABLED</span></td><td class=\\\'text-xs text-slate-400\\\'>\'+(p.risk_note||\'-\')+\'</td>\')">Effective Privileges</div></div>';
+  container.innerHTML += '<div class="max-h-[200px] overflow-y-auto rounded-lg" style="border:1px solid rgba(51,65,85,0.3)"><table><thead><tr><th>Privilege</th><th>Status</th><th>Risk Note</th></tr></thead><tbody>';
+  if (!enabledPrivs.length) container.innerHTML += '<tr><td colspan="3" class="text-slate-500 text-center py-4">No enabled privileges</td></tr>';
+  else enabledPrivs.forEach(p => { container.innerHTML += '<tr><td class="mono text-white text-xs">' + p.name + '</td><td><span class="badge ' + (p.risk === 'high' ? 'badge-red' : 'badge-gray') + '">ENABLED</span></td><td class="text-xs text-slate-400">' + (p.risk_note || '-') + '</td></tr>'; });
   container.innerHTML += '</tbody></table></div>';
 
-  // Dangerous privs note
   const dangerous = enabledPrivs.filter(p => p.risk === 'high');
-  if (dangerous.length) {
-    container.innerHTML += '<div class="mt-3 text-xs text-red-400" style="cursor:pointer" onclick="showModal(\'Dangerous Privileges ('+dangerous.length+')\', dangerous, [\'Privilege\',\'Risk\'], p => \'<td class=\\\'mono text-xs text-white\\\'>\'+p.name+\'</td><td class=\\\'text-xs text-red-400\\\'><span class=\\\'badge bg-red\\\'>HIGH</span></td>\')">&#9888; Dangerous privileges enabled: ' + dangerous.map(p => p.name).join(', ') + '</div>';
-  }
+  if (dangerous.length) container.innerHTML += '<div class="mt-3 text-xs text-red-400 flex items-center gap-2" style="cursor:pointer" onclick="showModal(\'Dangerous Privileges ('+dangerous.length+')\', dangerous, [\'Privilege\',\'Risk\'], p => \'<td class=\\\'mono text-xs text-white\\\'>\'+p.name+\'</td><td class=\\\'text-xs text-red-400\\\'><span class=\\\'badge badge-red\\\'>HIGH</span></td>\')"><span>&#9888;</span> Dangerous privileges enabled: ' + dangerous.map(p => p.name).join(', ') + '</div>';
 }
 
 function renderCompliance() {
   const container = document.getElementById('complianceBody');
-  if (!stores.compliance.length) { container.innerHTML = '<div class="text-slate-400">No compliance data</div>'; return; }
-  const total = stores.compliance.length;
+  if (!stores.compliance.length) { container.innerHTML = '<div class="text-slate-400 text-center py-8">No compliance data</div>'; return; }
   const nonCompliant = stores.compliance.filter(c => c.status === 'non_compliant');
   const compliant = stores.compliance.filter(c => c.status === 'compliant');
   const notAssessed = stores.compliance.filter(c => c.status === 'not_assessed');
   container.innerHTML =
-    '<div class="flex gap-4 mb-3 text-xs flex-wrap items-center">' +
-    '<span class="text-slate-400">93 Annex A controls</span>' +
-    '<span style="cursor:pointer" onclick="showModal(\'Non-Compliant ('+nonCompliant.length+')\',nonCompliant,[\'Control\',\'Title\',\'Severity\',\'Evidence\'],c=>\'<td class=\\\'mono text-xs text-slate-300\\\'>\'+c.control+\'</td><td class=\\\'text-xs text-slate-200\\\'>\'+c.title+\'</td><td><span class=\\\'badge bg-\'+c.severity+\\\'>\'+c.severity+\'</span></td><td class=\\\'text-xs text-slate-400 max-w-[250px]\\\'>\'+(c.evidence||\'\').substring(0,120)+\'</td>\')"><span class="text-red-400">Non-compliant:</span> <strong class="text-red-400">' + nonCompliant.length + '</strong></span>' +
-    '<span style="cursor:pointer" onclick="showModal(\'Compliant ('+compliant.length+')\',compliant,[\'Control\',\'Title\',\'Evidence\'],c=>\'<td class=\\\'mono text-xs text-slate-300\\\'>\'+c.control+\'</td><td class=\\\'text-xs text-slate-200\\\'>\'+c.title+\'</td><td class=\\\'text-xs text-slate-400 max-w-[300px]\\\'>\'+(c.evidence||\'\').substring(0,150)+\'</td>\')"><span class="text-green-400">Compliant:</span> <strong class="text-green-400">' + compliant.length + '</strong></span>' +
-    '<span style="cursor:pointer" onclick="showModal(\'Not Assessed ('+notAssessed.length+')\',notAssessed,[\'Control\',\'Title\',\'Note\'],c=>\'<td class=\\\'mono text-xs text-slate-300\\\'>\'+c.control+\'</td><td class=\\\'text-xs text-slate-200\\\'>\'+c.title+\'</td><td class=\\\'text-xs text-slate-400 max-w-[300px]\\\'>\'+c.details+\'</td>\')"><span class="text-slate-500">Not assessed:</span> <strong class="text-slate-400">' + notAssessed.length + '</strong></span>' +
+    '<div class="flex gap-4 mb-4 text-xs flex-wrap items-center">' +
+    '<span class="text-slate-500">93 Annex A controls</span>' +
+    '<span style="cursor:pointer" class="hover:opacity-80 transition-opacity" onclick="showModal(\'Non-Compliant ('+nonCompliant.length+')\',nonCompliant,[\'Control\',\'Title\',\'Severity\',\'Evidence\'],c=>\'<td class=\\\'mono text-xs text-slate-300\\\'>\'+c.control+\'</td><td class=\\\'text-xs text-slate-200\\\'>\'+c.title+\'</td><td><span class=\\\'badge badge-\'+c.severity+\\\'>\'+c.severity+\'</span></td><td class=\\\'text-xs text-slate-400 max-w-[250px]\\\'>\'+(c.evidence||\'\').substring(0,120)+\'</td>\')"><span class="text-red-400">&#9632; Non-compliant:</span> <strong class="text-red-400">' + nonCompliant.length + '</strong></span>' +
+    '<span style="cursor:pointer" class="hover:opacity-80 transition-opacity" onclick="showModal(\'Compliant ('+compliant.length+')\',compliant,[\'Control\',\'Title\',\'Evidence\'],c=>\'<td class=\\\'mono text-xs text-slate-300\\\'>\'+c.control+\'</td><td class=\\\'text-xs text-slate-200\\\'>\'+c.title+\'</td><td class=\\\'text-xs text-slate-400 max-w-[300px]\\\'>\'+(c.evidence||\'\').substring(0,150)+\'</td>\')"><span class="text-emerald-400">&#9632; Compliant:</span> <strong class="text-emerald-400">' + compliant.length + '</strong></span>' +
+    '<span style="cursor:pointer" class="hover:opacity-80 transition-opacity" onclick="showModal(\'Not Assessed ('+notAssessed.length+')\',notAssessed,[\'Control\',\'Title\',\'Note\'],c=>\'<td class=\\\'mono text-xs text-slate-300\\\'>\'+c.control+\'</td><td class=\\\'text-xs text-slate-200\\\'>\'+c.title+\'</td><td class=\\\'text-xs text-slate-400 max-w-[300px]\\\'>\'+c.details+\'</td>\')"><span class="text-slate-500">&#9632; Not assessed:</span> <strong class="text-slate-400">' + notAssessed.length + '</strong></span>' +
     '</div>';
 
-  // Group by theme
   const themes = { Organizational: [], People: [], Physical: [], Technological: [] };
   const themeNames = { Organizational: 'A.5 — Organizational Controls (37)', People: 'A.6 — People Controls (8)', Physical: 'A.7 — Physical Controls (14)', Technological: 'A.8 — Technological Controls (34)' };
   stores.compliance.forEach(c => { if (themes[c.theme]) themes[c.theme].push(c); });
 
   Object.keys(themes).forEach((theme, ti) => {
     const controls = themes[theme];
-    const nc = controls.filter(c => c.status === 'non_compliant').length;
-    const co = controls.filter(c => c.status === 'compliant').length;
-    const na = controls.filter(c => c.status === 'not_assessed').length;
-    const collapseId = 'theme-' + ti;
-    container.innerHTML += '<div class="mt-3 rounded-lg overflow-hidden" style="border:1px solid #334155">' +
-      '<div class="flex items-center justify-between px-3 py-2 cursor-pointer" style="background:rgba(30,41,59,0.5)" onclick="toggleCollapse(\''+collapseId+'\',this)">' +
-      '<span class="text-sm font-medium text-white">' + themeNames[theme] + '</span>' +
-      '<div class="flex gap-2 text-xs">' +
-      (nc ? '<span class="text-red-400">' + nc + ' non-compliant</span>' : '') +
-      (co ? '<span class="text-green-400">' + co + ' ok</span>' : '') +
-      (na ? '<span class="text-slate-500">' + na + ' not assessed</span>' : '') +
-      '<span class="text-slate-600">&#9660;</span></div></div>' +
+    const nc2 = controls.filter(c => c.status === 'non_compliant').length;
+    const co2 = controls.filter(c => c.status === 'compliant').length;
+    const na2 = controls.filter(c => c.status === 'not_assessed').length;
+    const collapseId = 'ctheme-' + ti;
+    container.innerHTML += '<div class="mt-3 rounded-xl overflow-hidden" style="border:1px solid rgba(51,65,85,0.3)">' +
+      '<div class="flex items-center justify-between px-4 py-3 cursor-pointer transition-colors hover:bg-slate-800/30" style="background:rgba(15,23,42,0.4)" onclick="toggleCollapse(\''+collapseId+'\',this)">' +
+      '<span class="text-sm font-semibold text-slate-200">' + themeNames[theme] + '</span>' +
+      '<div class="flex gap-3 text-xs items-center">' +
+      (nc2 ? '<span class="text-red-400">' + nc2 + ' non-compliant</span>' : '') +
+      (co2 ? '<span class="text-emerald-400">' + co2 + ' ok</span>' : '') +
+      (na2 ? '<span class="text-slate-500">' + na2 + ' not assessed</span>' : '') +
+      '<span class="text-slate-600 transition-transform" id="arr-' + collapseId + '">&#9660;</span></div></div>' +
       '<div id="' + collapseId + '" style="display:' + (ti === 0 ? 'block' : 'none') + '">';
 
     controls.forEach(c => {
-      const sevCls = c.severity === 'critical' ? 'bg-critical' : c.severity === 'high' ? 'bg-high' : c.severity === 'medium' ? 'bg-medium' : c.severity === 'none' ? 'bg-green' : 'bg-gray';
+      const sevCls = c.severity === 'critical' ? 'badge-critical' : c.severity === 'high' ? 'badge-high' : c.severity === 'medium' ? 'badge-medium' : c.severity === 'none' ? 'badge-green' : 'badge-gray';
       const statusIcon = c.status === 'compliant' ? '&#10003;' : c.status === 'non_compliant' ? '&#10007;' : '&#8212;';
       const statusColor = c.status === 'compliant' ? '#4ade80' : c.status === 'non_compliant' ? '#f87171' : '#64748b';
-      container.innerHTML += '<div class="px-3 py-2 border-t border-slate-800" style="background:rgba(15,23,42,0.3)">' +
-        '<div class="flex items-start gap-2">' +
-        '<span style="color:' + statusColor + ';font-weight:bold;min-width:16px">' + statusIcon + '</span>' +
+      container.innerHTML += '<div class="px-4 py-3" style="border-top:1px solid rgba(51,65,85,0.2)">' +
+        '<div class="flex items-start gap-3">' +
+        '<span style="color:' + statusColor + ';font-weight:bold;min-width:16px;font-size:.9rem">' + statusIcon + '</span>' +
         '<div class="flex-1 min-w-0">' +
         '<div class="flex items-center gap-2 flex-wrap">' +
         '<span class="mono text-xs text-slate-400 font-bold">' + c.control + '</span>' +
         '<span class="text-xs text-slate-200 font-medium">' + c.title + '</span>' +
         (c.severity !== 'none' && c.severity !== 'info' ? '<span class="badge ' + sevCls + '">' + c.severity + '</span>' : '') +
-        '<span class="badge ' + (c.status === 'compliant' ? 'bg-green' : c.status === 'non_compliant' ? 'bg-red' : 'bg-gray') + '">' + c.status.replace('_',' ') + '</span></div>' +
-        '<div class="text-xs text-slate-500 mt-1">' + c.description + '</div>' +
-        (c.evidence && c.status !== 'not_assessed' ? '<div class="mt-1 text-xs" style="color:#94a3b8"><span class="text-slate-500">Evidence:</span> ' + c.evidence + '</div>' : '') +
-        (c.details && c.status === 'not_assessed' ? '<div class="mt-1 text-xs text-slate-500">Review: ' + c.details + '</div>' : '') +
+        '<span class="badge ' + (c.status === 'compliant' ? 'badge-green' : c.status === 'non_compliant' ? 'badge-red' : 'badge-gray') + '">' + c.status.replace('_',' ') + '</span></div>' +
+        '<div class="text-xs text-slate-500 mt-1 leading-relaxed">' + c.description + '</div>' +
+        (c.evidence && c.status !== 'not_assessed' ? '<div class="mt-1.5 text-xs" style="color:#94a3b8"><span class="text-slate-500">Evidence:</span> ' + c.evidence + '</div>' : '') +
+        (c.details && c.status === 'not_assessed' ? '<div class="mt-1.5 text-xs text-slate-500">Review: ' + c.details + '</div>' : '') +
         '</div></div></div>';
     });
     container.innerHTML += '</div></div>';
   });
-}
-
-function toggleCollapse(id, btn) {
-  const el = document.getElementById(id);
-  const arrow = btn.querySelector('span:last-child');
-  if (el.style.display === 'none') { el.style.display = 'block'; if (arrow) arrow.innerHTML = '&#9660;'; }
-  else { el.style.display = 'none'; if (arrow) arrow.innerHTML = '&#9654;'; }
 }
 
 function renderProcesses() {
@@ -508,54 +666,27 @@ function renderProcesses() {
     if (vb === undefined || vb === null) vb = -Infinity;
     return va < vb ? (s.asc ? -1 : 1) : va > vb ? (s.asc ? 1 : -1) : 0;
   });
-  // Update sort arrows
   ['risk_score','pid','name','parent_app','owner','is_signed','memory_mb','has_network'].forEach(k => {
-    const el = document.getElementById('sort-processes-' + k);
+    const el = document.getElementById('sort-p-' + k);
     if (el) el.innerHTML = (k === s.key ? (s.asc ? ' \u25B2' : ' \u25BC') : '');
   });
-
-  const filtered = sorted.filter(p =>
-    String(p.pid).includes(q) || (p.name||'').toLowerCase().includes(q) || (p.owner||'').toLowerCase().includes(q)
-  );
+  const filtered = sorted.filter(p => String(p.pid).includes(q) || (p.name||'').toLowerCase().includes(q) || (p.owner||'').toLowerCase().includes(q));
   document.getElementById('procCount').textContent = filtered.length + '/' + stores.processes.length;
-  document.getElementById('procCount').onclick = function() { showModal('All Processes ('+stores.processes.length+')', stores.processes.slice(0,200), ['PID','Name','Parent App','Owner','Risk Score','Memory','Network'], function(p){return '<td class=\'mono text-xs text-slate-400\'>'+p.pid+'</td><td class=\'text-xs text-white\'>'+p.name+'</td><td class=\'text-xs text-slate-400\'>'+(p.parent_app||'Unknown')+'</td><td class=\'text-xs text-slate-300 truncate max-w-[100px]\'>'+(p.owner||'-')+'</td><td><span class=\'badge '+(p.risk_score>=50?'bg-critical':p.risk_score>=20?'bg-medium':p.risk_score>=1?'bg-low':'bg-gray')+'\'>'+p.risk_score+'</span></td><td class=\'mono text-xs text-slate-400\'>'+(p.memory_mb||0).toFixed(0)+' MB</td><td>'+(p.has_network?'<span class=\'badge bg-yellow\'>Yes</span>':'<span class=\'badge bg-gray\'>No</span>')+'</td>';}); };
-  const riskColor = (s) => s >= 50 ? '#f87171' : s >= 20 ? '#facc15' : s >= 1 ? '#60a5fa' : '#4ade80';
-  const riskLabel = (s) => s >= 50 ? 'High' : s >= 20 ? 'Med' : s >= 1 ? 'Low' : 'None';
-  const riskCls = (s) => s >= 50 ? 'bg-critical' : s >= 20 ? 'bg-medium' : s >= 1 ? 'bg-low' : 'bg-gray';
+  const riskCls = (s2) => s2 >= 50 ? 'badge-critical' : s2 >= 20 ? 'badge-medium' : s2 >= 1 ? 'badge-low' : 'badge-gray';
+  const riskLabel = (s2) => s2 >= 50 ? 'High' : s2 >= 20 ? 'Med' : s2 >= 1 ? 'Low' : 'None';
   document.getElementById('procBody').innerHTML = filtered.slice(0, 200).map(p =>
-    '<tr onclick="showDetail(' + p.pid + ')" style="cursor:pointer">' +
+    '<tr onclick="showProcDetail(' + p.pid + ')" style="cursor:pointer">' +
     '<td><span class="badge ' + riskCls(p.risk_score) + '">' + riskLabel(p.risk_score) + '</span></td>' +
-    '<td class="mono text-slate-400">' + p.pid + '</td>' +
-    '<td class="font-medium text-white text-xs">' + p.name + '</td>' +
+    '<td class="mono text-slate-400 text-xs">' + p.pid + '</td>' +
+    '<td class="font-semibold text-white text-xs">' + p.name + '</td>' +
     '<td class="text-xs ' + (p.parent_app === 'Windows System' ? 'text-slate-400' : 'text-yellow-400') + '">' + (p.parent_app || 'Unknown') + '</td>' +
     '<td class="text-xs text-slate-300 truncate max-w-[100px]">' + (p.owner||'-') + '</td>' +
-    '<td>' + (p.is_signed ? '<span class="badge bg-green">&#10003;</span>' : '<span class="badge bg-red">&#10007;</span>') + '</td>' +
+    '<td>' + (p.is_signed ? '<span class="badge badge-green">&#10003;</span>' : '<span class="badge badge-red">&#10007;</span>') + '</td>' +
     '<td class="mono text-xs text-slate-300">' + (p.memory_mb||0).toFixed(0) + ' MB</td>' +
-    '<td>' + (p.has_network ? '<span class="badge bg-yellow">LAN</span>' : '<span class="badge bg-gray">-</span>') + '</td>' +
+    '<td>' + (p.has_network ? '<span class="badge badge-yellow">Yes</span>' : '<span class="badge badge-gray">-</span>') + '</td>' +
     '<td class="text-xs text-slate-500 max-w-[180px] truncate" title="' + (p.risk_reasons||'').replace(/"/g,'&quot;') + '">' + (p.risk_reasons||'-') + '</td></tr>'
   ).join('');
-  if (filtered.length > 200) document.getElementById('procBody').innerHTML += '<tr><td colspan="8" class="text-center text-slate-500">... and ' + (filtered.length - 200) + ' more</td></tr>';
-}
-
-function showDetail(pid) {
-  fetch('/api/processes/detail?pid=' + pid).then(r=>r.json()).then(d => {
-    const p = d.process;
-    if (!p) return;
-    const riskLabel = p.risk_score >= 50 ? 'HIGH' : p.risk_score >= 20 ? 'MEDIUM' : p.risk_score >= 1 ? 'LOW' : 'NONE';
-    const riskCls = p.risk_score >= 50 ? 'bg-critical' : p.risk_score >= 20 ? 'bg-medium' : p.risk_score >= 1 ? 'bg-low' : 'bg-gray';
-    alert(
-      p.name + ' (PID ' + p.pid + ')\n' +
-      'Parent App: ' + (p.parent_app || 'Unknown') + '\n' +
-      'Owner: ' + (p.owner || 'N/A') + '\n' +
-      'Risk Score: ' + p.risk_score + '/100 (' + riskLabel + ')\n' +
-      'Signed: ' + (p.is_signed ? 'Yes' : 'No') + '\n' +
-      'Memory: ' + (p.memory_mb||0).toFixed(0) + ' MB\n' +
-      'Network: ' + (p.has_network ? 'Yes' : 'No') + '\n' +
-      'Threads: ' + (p.thread_count||0) + '\n' +
-      'Path: ' + (p.executable_path || '-') + '\n' +
-      'Risk Reasons: ' + (p.risk_reasons || 'None') + '\n'
-    );
-  });
+  if (filtered.length > 200) document.getElementById('procBody').innerHTML += '<tr><td colspan="9" class="text-center text-slate-500 py-4">... and ' + (filtered.length - 200) + ' more</td></tr>';
 }
 
 function renderServices() {
@@ -570,162 +701,114 @@ function renderServices() {
     return va < vb ? (st.asc ? -1 : 1) : va > vb ? (st.asc ? 1 : -1) : 0;
   });
   ['name','parent_app','state','start_mode','start_name'].forEach(k => {
-    const el = document.getElementById('sort-services-' + k);
+    const el = document.getElementById('sort-s-' + k);
     if (el) el.innerHTML = (k === st.key ? (st.asc ? ' \u25B2' : ' \u25BC') : '');
   });
   const filtered = sorted.filter(s => (s.name||'').toLowerCase().includes(q) || (s.display_name||'').toLowerCase().includes(q));
   document.getElementById('svcCount').textContent = filtered.length + '/' + stores.services.length;
-  document.getElementById('svcCount').onclick = function() { showModal('All Services ('+stores.services.length+')', stores.services, ['Name','Parent App','State','Start Type','User','Description'], function(s){return '<td class=\'text-xs text-white\'>'+s.name+'</td><td class=\'text-xs text-slate-400\'>'+(s.parent_app||'Unknown')+'</td><td><span class=\'badge '+(s.state==='Running'?'bg-green':'bg-gray')+'\'>'+(s.state||'')+'</span></td><td class=\'text-xs text-slate-400\'>'+(s.start_mode||'')+'</td><td class=\'text-xs text-slate-400\'>'+(s.start_name||'')+'</td><td class=\'text-xs text-slate-500 max-w-[250px]\'>'+(s.description||s.display_name||'')+'</td>';}); };
   document.getElementById('svcBody').innerHTML = filtered.map(s => {
     const isSYSTEM = s.start_name && (s.start_name.includes('SYSTEM') || s.start_name.includes('LocalSystem'));
     const parentCls = s.parent_app === 'Windows System' ? 'text-slate-400' : s.parent_app === 'Unknown' ? 'text-slate-500' : 'text-yellow-400';
-    return '<tr><td class="font-medium text-white text-xs">' + s.name + '</td>' +
+    return '<tr><td class="font-semibold text-white text-xs">' + s.name + '</td>' +
     '<td class="text-xs ' + parentCls + '">' + (s.parent_app || 'Unknown') + '</td>' +
-    '<td><span class="badge ' + (s.state==='Running'?'bg-green':'bg-gray') + '">' + (s.state||'') + '</span></td>' +
+    '<td><span class="badge ' + (s.state==='Running'?'badge-green':'badge-gray') + '">' + (s.state||'') + '</span></td>' +
     '<td class="text-xs text-slate-400">' + (s.start_mode||'') + '</td>' +
     '<td class="text-xs ' + (isSYSTEM ? 'text-yellow-400' : 'text-slate-400') + '">' + (s.start_name||'') + '</td>' +
-    '<td class="text-xs text-slate-500 max-w-[300px]" title="' + ((s.description||'').replace(/"/g,'&quot;')) + '">' + (s.description||s.display_name||'') + '</td></tr>';
+    '<td class="text-xs text-slate-500 max-w-[300px] truncate" title="' + ((s.description||'').replace(/"/g,'&quot;')) + '">' + (s.description||s.display_name||'') + '</td></tr>';
   }).join('');
 }
 
 function renderAccess() {
   const container = document.getElementById('accessBody');
-  // Local users
-  // Local users sort
-  const userSort = { key: 'name', asc: true };
-  const sortedUsers = [...stores.localUsers].sort((a, b) => {
-    let va = (a[userSort.key]||'').toLowerCase(), vb = (b[userSort.key]||'').toLowerCase();
-    return va < vb ? -1 : va > vb ? 1 : 0;
-  });
-  let html = '<div class="mb-4"><div class="text-xs text-slate-500 uppercase tracking-wider mb-2" style="cursor:pointer" onclick="showModal(\'Local Users ('+stores.localUsers.length+')\', stores.localUsers, [\'Name\',\'Full Name\',\'Enabled\',\'Description\'], u => \'<td class=\\\'text-xs text-white font-medium\\\'>\'+u.name+\'</td><td class=\\\'text-xs text-slate-300\\\'>\'+(u.full_name||\'-\')+\'</td><td><span class=\\\'badge \'+(u.enabled?\\\'bg-green\\\':\\\'bg-gray\\\')+\\\'>\'+(u.enabled?\'Yes\':\'No\')+\'</span></td><td class=\\\'text-xs text-slate-400 max-w-[200px] truncate\\\'>\'+(u.description||\'-\')+\'</td>\')">Local User Accounts (' + stores.localUsers.length + ')</div>';
-  html += '<table><thead><tr><th>Name</th><th>Full Name</th><th>Enabled</th><th>Description</th></tr></thead><tbody>';
-  sortedUsers.forEach(u => {
-    html += '<tr><td class="font-medium text-white text-xs">' + (u.name||'') + '</td><td class="text-xs text-slate-300">' + (u.full_name||'') + '</td>' +
-      '<td><span class="badge ' + (u.enabled ? 'bg-green' : 'bg-gray') + '">' + (u.enabled ? 'Yes' : 'No') + '</span></td>' +
-      '<td class="text-xs text-slate-400">' + (u.description||'') + '</td></tr>';
-  });
-  html += '</tbody></table></div>';
+  const sortedUsers = [...stores.localUsers].sort((a, b) => ((a.name||'') > (b.name||'')) ? 1 : -1);
+  let html = '<div class="mb-5"><div class="text-xs text-slate-500 uppercase tracking-wider mb-3 font-semibold" style="cursor:pointer" onclick="showModal(\'Local Users ('+stores.localUsers.length+')\', stores.localUsers, [\'Name\',\'Full Name\',\'Enabled\',\'Description\'], u => \'<td class=\\\'text-xs text-white font-medium\\\'>\'+u.name+\'</td><td class=\\\'text-xs text-slate-300\\\'>\'+(u.full_name||\'-\')+\'</td><td><span class=\\\'badge \'+(u.enabled?\\\'badge-green\\\':\\\'badge-gray\\\')+\\\'>\'+(u.enabled?\'Yes\':\'No\')+\'</span></td><td class=\\\'text-xs text-slate-400 max-w-[200px] truncate\\\'>\'+(u.description||\'-\')+\'</td>\')">Local User Accounts (' + stores.localUsers.length + ')</div>';
+  html += '<div class="rounded-lg overflow-hidden" style="border:1px solid rgba(51,65,85,0.3)"><table><thead><tr><th>Name</th><th>Full Name</th><th>Enabled</th><th>Description</th></tr></thead><tbody>';
+  sortedUsers.forEach(u => { html += '<tr><td class="font-medium text-white text-xs">' + (u.name||'') + '</td><td class="text-xs text-slate-300">' + (u.full_name||'') + '</td><td><span class="badge ' + (u.enabled ? 'badge-green' : 'badge-gray') + '">' + (u.enabled ? 'Yes' : 'No') + '</span></td><td class="text-xs text-slate-400">' + (u.description||'') + '</td></tr>'; });
+  html += '</tbody></table></div></div>';
 
-  // Groups
-  html += '<div class="mb-4"><div class="text-xs text-slate-500 uppercase tracking-wider mb-2" style="cursor:pointer" onclick="showModal(\'Local Groups ('+stores.localGroups.length+')\', stores.localGroups, [\'Group Name\',\'Description\',\'Members\'], g => { var ms=stores.groupMembers.filter(function(m){return m.group_name===g.name;}); return \'<td class=\\\'text-xs text-white font-medium\\\'>\'+g.name+\'</td><td class=\\\'text-xs text-slate-400\\\'>\'+(g.description||\'-\')+\'</td><td class=\\\'text-xs text-slate-300\\\'>\'+(ms.length?ms.map(function(m){return m.member_name;}).join(\', \'):\'-\')+\'</td>\'; })">Local Groups &amp; Members</div>';
+  html += '<div class="mb-5"><div class="text-xs text-slate-500 uppercase tracking-wider mb-3 font-semibold" style="cursor:pointer" onclick="showModal(\'Local Groups ('+stores.localGroups.length+')\', stores.localGroups, [\'Group Name\',\'Description\',\'Members\'], g => { var ms=stores.groupMembers.filter(function(m){return m.group_name===g.name;}); return \'<td class=\\\'text-xs text-white font-medium\\\'>\'+g.name+\'</td><td class=\\\'text-xs text-slate-400\\\'>\'+(g.description||\'-\')+\'</td><td class=\\\'text-xs text-slate-300\\\'>\'+(ms.length?ms.map(function(m){return m.member_name;}).join(\', \'):\'-\')+\'</td>\'; })">Local Groups &amp; Members</div>';
   stores.localGroups.forEach(g => {
     const members = stores.groupMembers.filter(m => m.group_name === g.name);
-    html += '<div class="mb-2 rounded-lg p-2.5" style="background:rgba(30,41,59,0.3)">' +
-      '<div class="text-sm text-white font-medium">' + g.name + '</div>' +
-      '<div class="text-xs text-slate-500">' + (g.description||'') + '</div>' +
-      '<div class="text-xs text-slate-400 mt-1">Members: ' + (members.length ? members.map(m => m.member_name).join(', ') : '(none)') + '</div></div>';
+    html += '<div class="mb-2 rounded-lg p-3" style="background:rgba(15,23,42,0.4);border:1px solid rgba(51,65,85,0.2)">' +
+      '<div class="text-sm text-white font-semibold">' + g.name + '</div>' +
+      '<div class="text-xs text-slate-500 mt-0.5">' + (g.description||'') + '</div>' +
+      '<div class="text-xs text-slate-400 mt-2">Members: ' + (members.length ? members.map(m => m.member_name).join(', ') : '(none)') + '</div></div>';
   });
   html += '</div>';
 
-  // File ACLs
-  html += '<div class="mb-4"><div class="text-xs text-slate-500 uppercase tracking-wider mb-2" style="cursor:pointer" onclick="showModal(\'File System ACLs ('+stores.aclEntries.length+')\', stores.aclEntries, [\'Path\',\'Identity\',\'Rights\',\'Access\'], e => \'<td class=\\\'mono text-xs text-slate-300 max-w-[200px] truncate\\\' title=\\\'\'+e.path+\'\\\'>\'+e.path+\'</td><td class=\\\'text-xs text-slate-300\\\'>\'+e.identity+\'</td><td class=\\\'text-xs text-slate-400\\\'>\'+e.rights+\'</td><td><span class=\\\'badge \'+(e.access_type===\\\'Deny\\\'?\\\'bg-red\\\':\\\'bg-green\\\')+\\\'>\'+e.access_type+\'</span></td>\')">File System ACLs (Sensitive Paths)</div>';
+  html += '<div class="mb-2"><div class="text-xs text-slate-500 uppercase tracking-wider mb-3 font-semibold" style="cursor:pointer" onclick="showModal(\'File System ACLs ('+stores.aclEntries.length+')\', stores.aclEntries, [\'Path\',\'Identity\',\'Rights\',\'Access\'], e => \'<td class=\\\'mono text-xs text-slate-300 max-w-[200px] truncate\\\' title=\\\'\'+e.path+\'\\\'>\'+e.path+\'</td><td class=\\\'text-xs text-slate-300\\\'>\'+e.identity+\'</td><td class=\\\'text-xs text-slate-400\\\'>\'+e.rights+\'</td><td><span class=\\\'badge \'+(e.access_type===\\\'Deny\\\'?\\\'badge-red\\\':\\\'badge-green\\\')+\\\'>\'+e.access_type+\'</span></td>\')">File System ACLs (Sensitive Paths)</div>';
   const paths = [...new Set(stores.aclEntries.map(a => a.path))];
   paths.forEach(p => {
     const entries = stores.aclEntries.filter(a => a.path === p);
-    html += '<div class="mb-2 rounded-lg p-2.5" style="background:rgba(30,41,59,0.3)">' +
-      '<div class="text-xs text-white font-medium mb-1 mono">' + p + '</div>';
+    html += '<div class="mb-2 rounded-lg p-3" style="background:rgba(15,23,42,0.4);border:1px solid rgba(51,65,85,0.2)">' +
+      '<div class="text-xs text-white font-medium mb-1.5 mono">' + p + '</div>';
     entries.forEach(e => {
       const isDangerous = e.access_type === 'Allow' && (e.rights||'').toLowerCase().includes('fullcontrol') && (e.identity||'').toLowerCase().includes('everyone');
-      html += '<div class="text-xs ' + (isDangerous ? 'text-red-400' : 'text-slate-400') + ' ml-2">' +
-        e.identity + ': ' + e.rights + ' [' + e.access_type + ']</div>';
+      html += '<div class="text-xs ' + (isDangerous ? 'text-red-400' : 'text-slate-400') + ' ml-2 py-0.5">' + e.identity + ': ' + e.rights + ' [' + e.access_type + ']</div>';
     });
     html += '</div>';
   });
-  html += '</div>';
   container.innerHTML = html;
 }
 
-function renderHistory() {
-  const container = document.getElementById('historyBody');
+function renderConfig() {
+  const container = document.getElementById('configBody');
   const cfg = stores.riskConfig;
-  if (!cfg) { container.innerHTML = '<div class="text-slate-400">No risk config found. Edit <code class="text-slate-300">risk-config.json</code> to customize scoring.</div>'; return; }
-
-  let html = '<div class="text-xs text-slate-500 mb-3">Edit <code class="text-slate-300">risk-config.json</code> in the project root to customize risk scoring weights and finding type overrides. Changes take effect on the next scan.</div>';
-
-  // Severity weights
-  html += '<div class="mb-4"><div class="text-xs text-slate-500 uppercase tracking-wider mb-2">Severity Weights</div>';
-  html += '<div class="grid grid-cols-5 gap-2">';
+  if (!cfg) { container.innerHTML = '<div class="text-slate-400 text-center py-8">No risk config found. Edit <code class="text-slate-300">risk-config.json</code> to customize scoring.</div>'; return; }
+  let html = '<div class="text-xs text-slate-500 mb-4">Edit <code class="text-slate-300">risk-config.json</code> to customize risk scoring weights and finding type overrides.</div>';
+  html += '<div class="mb-4"><div class="text-xs text-slate-500 uppercase tracking-wider mb-3 font-semibold">Severity Weights</div>';
+  html += '<div class="grid grid-cols-5 gap-3">';
   for (const [sev, w] of Object.entries(cfg.severity_weights || {})) {
-    const cls = sev === 'critical' ? 'bg-red' : sev === 'high' ? 'bg-high' : sev === 'medium' ? 'bg-medium' : sev === 'low' ? 'bg-low' : 'bg-gray';
-    html += '<div class="rounded-lg p-2.5 text-center" style="background:rgba(30,41,59,0.5)">' +
-      '<span class="badge ' + cls + ' text-xs">' + sev.toUpperCase() + '</span>' +
-      '<div class="text-xs text-slate-400 mt-1">Weight: <strong class="text-white">' + w + '</strong></div></div>';
+    const cls = sev === 'critical' ? 'badge-red' : sev === 'high' ? 'badge-high' : sev === 'medium' ? 'badge-medium' : sev === 'low' ? 'badge-low' : 'badge-gray';
+    html += '<div class="glass-card p-4 text-center"><span class="badge ' + cls + '">' + sev.toUpperCase() + '</span><div class="text-xs text-slate-400 mt-2">Weight: <strong class="text-white">' + w + '</strong></div></div>';
   }
   html += '</div></div>';
-
-  // Score range
   html += '<div class="mb-4 text-xs text-slate-400">Score range: <strong class="text-white">' + (cfg.min_score||10) + '</strong> &ndash; <strong class="text-white">' + (cfg.max_score||100) + '</strong></div>';
-
-  // Type overrides
   const overrides = cfg.type_overrides || {};
-  const overrideKeys = Object.keys(overrides);
-  if (overrideKeys.length) {
-    html += '<div class="mb-3"><div class="text-xs text-slate-500 uppercase tracking-wider mb-2">Finding Type Overrides</div>';
-    overrideKeys.forEach(k => {
+  if (Object.keys(overrides).length) {
+    html += '<div class="mb-3"><div class="text-xs text-slate-500 uppercase tracking-wider mb-3 font-semibold">Finding Type Overrides</div>';
+    Object.keys(overrides).forEach(k => {
       const o = overrides[k];
-      const sevCls = o.severity === 'critical' ? 'bg-critical' : o.severity === 'high' ? 'bg-high' : o.severity === 'medium' ? 'bg-medium' : o.severity === 'low' ? 'bg-low' : 'bg-gray';
-      html += '<div class="mb-2 rounded-lg p-2.5" style="background:rgba(30,41,59,0.4);border-left:3px solid #334155">' +
-        '<div class="flex items-center gap-2"><span class="text-xs font-mono text-white">' + k + '</span>' +
+      const sevCls = o.severity === 'critical' ? 'badge-critical' : o.severity === 'high' ? 'badge-high' : o.severity === 'medium' ? 'badge-medium' : o.severity === 'low' ? 'badge-low' : 'badge-gray';
+      html += '<div class="mb-2 rounded-lg p-3" style="background:rgba(15,23,42,0.4);border-left:3px solid rgba(99,102,241,0.3);border:1px solid rgba(51,65,85,0.2)">' +
+        '<div class="flex items-center gap-2 flex-wrap"><span class="text-xs font-mono text-white">' + k + '</span>' +
         '<span class="badge ' + sevCls + '">' + (o.severity || 'default') + '</span>' +
         '<span class="text-xs text-slate-400">weight: ' + (o.weight !== undefined ? o.weight : 'default') + '</span></div>' +
-        (o.note ? '<div class="text-xs text-slate-500 mt-1">' + o.note + '</div>' : '') + '</div>';
+        (o.note ? '<div class="text-xs text-slate-500 mt-1.5">' + o.note + '</div>' : '') + '</div>';
     });
-    html += '</div>';
   }
-
-  // Suppressed types
   if (cfg.suppressed_types && cfg.suppressed_types.length) {
-    html += '<div class="text-xs text-slate-500 mb-1">Suppressed finding types:</div>';
-    html += '<div class="flex gap-1 flex-wrap">' + cfg.suppressed_types.map(t => '<span class="badge bg-gray">' + t + '</span>').join('') + '</div>';
+    html += '<div class="text-xs text-slate-500 mb-2"><span class="font-semibold text-slate-400">Suppressed:</span> ' + cfg.suppressed_types.join(', ') + '</div>';
   }
-
   container.innerHTML = html;
+}
+
+function toggleCollapse(id, btn) {
+  const el = document.getElementById(id);
+  const arrow = document.getElementById('arr-' + id);
+  if (el.style.display === 'none') { el.style.display = 'block'; if (arrow) arrow.style.transform = 'rotate(0deg)'; }
+  else { el.style.display = 'none'; if (arrow) arrow.style.transform = 'rotate(-90deg)'; }
 }
 
 async function triggerScan() {
-  const btn = document.getElementById('refreshBtn'), icon = document.getElementById('btnIcon'), txt = document.getElementById('btnText');
-  btn.disabled = true; txt.textContent = 'Scanning...'; icon.innerHTML = '&#x21bb;';
+  const btn = document.getElementById('refreshBtn');
+  const icon = document.getElementById('btnIcon');
+  const text = document.getElementById('btnText');
+  btn.disabled = true; icon.innerHTML = '<span class="spinner"></span>'; text.textContent = 'Scanning...';
+  let token = 'scan_trigger';
   try {
-    const resp = await fetch('/api/scan/trigger', { method: 'POST' });
-    const data = await resp.json();
-    if (data.error) { txt.textContent = 'Error: ' + data.error; icon.innerHTML = '&#x2716;'; btn.disabled = false; return; }
-    setTimeout(async () => {
-      await fetchAll();
-      btn.disabled = false; txt.textContent = 'Refresh'; icon.innerHTML = '&#x21bb;';
-    }, 3000);
-  } catch(e) { btn.disabled = false; txt.textContent = 'Error'; icon.innerHTML = '&#x2716;'; }
+    const r = await fetch('/api/scan/trigger', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    const j = await r.json();
+    if (j.status === 'done') { await fetchAll(); }
+  } catch(e) { alert('Scan failed: ' + e.message); }
+  btn.disabled = false; icon.innerHTML = '&#x21bb;'; text.textContent = 'Refresh';
 }
 
 function exportCSV(type) {
-  const a = document.createElement('a');
-  a.href = '/api/export/' + type;
-  a.download = type + '-' + new Date().toISOString().slice(0,10) + '.csv';
-  a.click();
+  window.open('/api/export/' + type, '_blank');
 }
 
-// Tab switching
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
-  });
-});
-
-window.onload = () => { fetchAll(); };
+fetchAll();
 </script>
-
-<!-- Modal -->
-<div id="modalOverlay" onclick="closeModal(event)" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px)">
-  <div onclick="event.stopPropagation()" style="background:#1e293b;border-radius:12px;border:1px solid #334155;max-width:700px;width:90%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.5)">
-    <div class="flex items-center justify-between px-4 py-3 border-b border-slate-700">
-      <span class="text-sm font-medium text-white" id="modalTitle"></span>
-      <button onclick="closeModal()" style="color:#64748b;font-size:1.2rem;line-height:1;padding:0 4px">&times;</button>
-    </div>
-    <div class="overflow-y-auto p-3" id="modalBody" style="min-height:100px"></div>
-  </div>
-</div>
-
 </body>
 </html>
