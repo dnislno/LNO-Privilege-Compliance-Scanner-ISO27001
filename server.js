@@ -353,6 +353,93 @@ async function handleAPI(req, res) {
     return;
   }
 
+  const EXCEPTIONS_PATH = path.join(__dirname, 'exceptions.json');
+
+  if (pathname === '/api/exceptions') {
+    if (req.method === 'GET') {
+      try {
+        if (fs.existsSync(EXCEPTIONS_PATH)) {
+          const content = fs.readFileSync(EXCEPTIONS_PATH, 'utf-8');
+          res.end(content);
+        } else {
+          res.end(JSON.stringify([]));
+        }
+      } catch (e) {
+        res.writeHead(500); res.end(JSON.stringify({ error: e.message }));
+      }
+      return;
+    }
+
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => { body += chunk.toString(); });
+      req.on('end', () => {
+        try {
+          const item = JSON.parse(body);
+          if (!item.type || !item.justification) {
+            res.writeHead(400); res.end(JSON.stringify({ error: 'type and justification are required' }));
+            return;
+          }
+
+          let exceptions = [];
+          if (fs.existsSync(EXCEPTIONS_PATH)) {
+            exceptions = JSON.parse(fs.readFileSync(EXCEPTIONS_PATH, 'utf-8'));
+          }
+
+          // Check for duplicate type + detail
+          const existingIdx = exceptions.findIndex(e => e.type === item.type && (e.detail || '') === (item.detail || ''));
+          const newException = {
+            type: item.type,
+            detail: item.detail || '',
+            justification: item.justification,
+            created_at: new Date().toISOString()
+          };
+
+          if (existingIdx >= 0) {
+            exceptions[existingIdx] = newException;
+          } else {
+            exceptions.push(newException);
+          }
+
+          fs.writeFileSync(EXCEPTIONS_PATH, JSON.stringify(exceptions, null, 2), 'utf-8');
+          res.end(JSON.stringify({ status: 'saved', exception: newException }));
+        } catch (e) {
+          res.writeHead(500); res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
+
+    if (req.method === 'DELETE') {
+      let body = '';
+      req.on('data', chunk => { body += chunk.toString(); });
+      req.on('end', () => {
+        try {
+          const item = JSON.parse(body);
+          if (!item.type) {
+            res.writeHead(400); res.end(JSON.stringify({ error: 'type is required' }));
+            return;
+          }
+
+          if (!fs.existsSync(EXCEPTIONS_PATH)) {
+            res.end(JSON.stringify({ status: 'deleted', count: 0 }));
+            return;
+          }
+
+          let exceptions = JSON.parse(fs.readFileSync(EXCEPTIONS_PATH, 'utf-8'));
+          const beforeCount = exceptions.length;
+          exceptions = exceptions.filter(e => !(e.type === item.type && (e.detail || '') === (item.detail || '')));
+          
+          fs.writeFileSync(EXCEPTIONS_PATH, JSON.stringify(exceptions, null, 2), 'utf-8');
+          res.end(JSON.stringify({ status: 'deleted', count: beforeCount - exceptions.length }));
+        } catch (e) {
+          res.writeHead(500); res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
+  }
+
   if (pathname === '/api/risk-config') {
     try {
       const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'risk-config.json'), 'utf-8'));

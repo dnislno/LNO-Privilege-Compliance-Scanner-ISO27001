@@ -24,3 +24,7 @@ Thumbs.db
 
 # Environment (contains secrets — DO NOT COMMIT)
 .env
+
+# Local exceptions registry (contains business justifications — DO NOT COMMIT)
+exceptions.json
+

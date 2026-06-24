@@ -16,7 +16,26 @@ const crypto = require('crypto');
 
 const DB_PATH = path.join(__dirname, 'scan.db');
 const CONFIG_PATH = path.join(__dirname, 'risk-config.json');
+const EXCEPTIONS_PATH = path.join(__dirname, 'exceptions.json');
 const scanId = crypto.randomUUID();
+
+/**
+ * Finds a matching exception for a given finding from the exception registry.
+ * @param {object} f - The finding object.
+ * @param {array} exceptionsList - The list of exceptions.
+ * @returns {object|null} The matching exception or null.
+ */
+function findMatchingException(f, exceptionsList) {
+  for (const e of exceptionsList) {
+    if (e.type === f.type) {
+      if (!e.detail || (f.detail && f.detail.toLowerCase().includes(e.detail.toLowerCase()))) {
+        return e;
+      }
+    }
+  }
+  return null;
+}
+
 
 // =============================================================================
 // ISO 27001:2022 MAPPING REFERENCE
@@ -552,6 +571,14 @@ const ANNEX_A = [
 
 async function scan() {
   const findings = [];
+  let exceptions = [];
+  try {
+    if (fs.existsSync(EXCEPTIONS_PATH)) {
+      exceptions = JSON.parse(fs.readFileSync(EXCEPTIONS_PATH, 'utf-8'));
+    }
+  } catch (e) {
+    console.error('Exceptions config error:', e.message);
+  }
 
   // ------------------------------------------------
   // 1. SYSTEM INFORMATION
@@ -1236,6 +1263,18 @@ async function scan() {
     'A.12.6.1': 'A.8.8', 'A.13.1.1': 'A.8.20',
   };
 
+  // Apply exceptions to findings before building compliance status
+  for (const f of findings) {
+    const match = findMatchingException(f, exceptions);
+    if (match) {
+      f.is_excepted = 1;
+      f.exception_justification = match.justification || 'Approved operational exception.';
+    } else {
+      f.is_excepted = 0;
+      f.exception_justification = '';
+    }
+  }
+
   // Compliance assessment: iterate all 93 Annex A controls
   const isoControls = {};
   for (const ctrl of ANNEX_A) {
@@ -1245,14 +1284,26 @@ async function scan() {
       const fIso = OLD_TO_NEW[f.iso] || f.iso;
       return fIso === code || (FINDING_ISO_MAP[f.type] || []).includes(code);
     });
-    if (violatingFindings.length > 0) {
-      // Non-compliant — evidence from actual findings
-      const maxSev = ['critical','high','medium','low'].find(s => violatingFindings.some(f => f.severity === s)) || 'medium';
+
+    const activeFindings = violatingFindings.filter(f => !f.is_excepted);
+    const exceptedFindings = violatingFindings.filter(f => f.is_excepted);
+
+    if (activeFindings.length > 0) {
+      // Non-compliant — evidence from actual non-excepted findings
+      const maxSev = ['critical','high','medium','low'].find(s => activeFindings.some(f => f.severity === s)) || 'medium';
       isoControls[code] = {
         control: code, title: ctrl.title, description: ctrl.desc,
         theme: ctrl.theme, status: 'non_compliant', severity: maxSev,
-        evidence: violatingFindings.map(f => f.title).join(' | '),
+        evidence: violatingFindings.map(f => f.is_excepted ? '[Excepted] ' + f.title : f.title).join(' | '),
         details: violatingFindings.slice(0,3).map(f => f.detail).filter(Boolean).join(' | '),
+      };
+    } else if (exceptedFindings.length > 0) {
+      // Compliant with approved exceptions
+      isoControls[code] = {
+        control: code, title: ctrl.title, description: ctrl.desc,
+        theme: ctrl.theme, status: 'compliant', severity: 'none',
+        evidence: 'Compliant with approved exceptions: ' + exceptedFindings.map(f => f.title + ' (Justification: ' + f.exception_justification + ')').join(' | '),
+        details: 'Exceptions: ' + exceptedFindings.slice(0,3).map(f => f.detail).filter(Boolean).join(' | '),
       };
     } else if (VERIFIABLE_CONTROLS.has(code)) {
       // Scanner verified this control is implemented correctly
@@ -1362,7 +1413,8 @@ async function scan() {
   db.run(`CREATE TABLE IF NOT EXISTS findings (
     id INTEGER PRIMARY KEY AUTOINCREMENT, scan_id TEXT REFERENCES scans(id),
     type TEXT, severity TEXT, category TEXT, iso TEXT,
-    title TEXT, detail TEXT, remediation TEXT
+    title TEXT, detail TEXT, remediation TEXT,
+    is_excepted INTEGER DEFAULT 0, exception_justification TEXT
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS compliance_status (
@@ -1438,8 +1490,8 @@ async function scan() {
   for (const a of aclEntries) aclStmt.run([scanId, a.Path, a.Identity || '', a.Rights || '', a.AccessType || '', a.IsInherited ? 1 : 0]);
   aclStmt.free();
 
-  const fStmt = db.prepare('INSERT INTO findings (scan_id, type, severity, category, iso, title, detail, remediation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-  for (const f of findings) fStmt.run([scanId, f.type, f.severity, f.category, f.iso, f.title, f.detail || '', f.remediation || '']);
+  const fStmt = db.prepare('INSERT INTO findings (scan_id, type, severity, category, iso, title, detail, remediation, is_excepted, exception_justification) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  for (const f of findings) fStmt.run([scanId, f.type, f.severity, f.category, f.iso, f.title, f.detail || '', f.remediation || '', f.is_excepted ? 1 : 0, f.exception_justification || '']);
   fStmt.free();
 
   const cStmt = db.prepare('INSERT INTO compliance_status (scan_id, control, title, description, theme, status, severity, evidence, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
@@ -1468,6 +1520,7 @@ async function scan() {
   }
   const uniqueTypes = {};
   for (const f of filteredFindings) {
+    if (f.is_excepted) continue; // Skip excepted findings from risk score calculation
     const key = f.type;
     const existing = uniqueTypes[key];
     if (!existing || (sevRank[f.severity] || 0) > (sevRank[existing] || 0)) {

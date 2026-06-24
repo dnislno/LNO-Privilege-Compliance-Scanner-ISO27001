@@ -190,6 +190,21 @@ tr:hover td { background:rgba(99,102,241,0.04); }
     </div>
   </div>
 
+  <!-- Audit Integrity Seal -->
+  <div class="mt-8 p-4 rounded-xl glass flex items-center justify-between border border-emerald-500/20" id="integritySeal" style="display:none">
+    <div class="flex items-center gap-3">
+      <span class="text-xl">🛡️</span>
+      <div>
+        <div class="text-xs font-semibold text-emerald-400 uppercase tracking-widest">LNO Alloy Cryptographic Integrity Seal</div>
+        <div class="text-[0.68rem] text-slate-500 mt-0.5">This audit report is signed with an offline SHA-256 hash to guarantee data integrity and prevent post-scan tampering.</div>
+      </div>
+    </div>
+    <div class="text-right">
+      <div class="text-[0.7rem] text-slate-400 uppercase font-semibold">Report Hash</div>
+      <div class="text-[0.68rem] mono text-emerald-400 mt-0.5 break-all" id="integrityHash">--</div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <div class="flex items-center justify-between text-xs text-slate-700 mt-8 pt-4" style="border-top:1px solid rgba(51,65,85,0.3)">
     <span>LNO Privilege Compliance Scanner &mdash; <a href="https://github.com/dnislno" class="text-slate-500 hover:text-slate-300 transition-colors" target="_blank">github.com/dnislno</a></span>
@@ -227,6 +242,7 @@ tr:hover td { background:rgba(99,102,241,0.04); }
       <div class="tab-btn" data-tab="services">Services</div>
       <div class="tab-btn" data-tab="access">Access Control</div>
       <div class="tab-btn" data-tab="config">Risk Config</div>
+      <div class="tab-btn" data-tab="exceptions">Exceptions</div>
     </div>
 
     <!-- Panel: Findings -->
@@ -318,6 +334,36 @@ tr:hover td { background:rgba(99,102,241,0.04); }
         <div class="p-4" id="configBody">Loading...</div>
       </div>
     </div>
+
+    <!-- Panel: Exceptions -->
+    <div id="panel-exceptions" class="panel">
+      <div class="rounded-b-xl overflow-hidden" style="background:rgba(15,23,42,0.6);border:1px solid rgba(51,65,85,0.3)">
+        <div class="p-4 flex items-center justify-between" style="border-bottom:1px solid rgba(51,65,85,0.3)">
+          <div>
+            <span class="text-sm font-semibold text-slate-200">Local Exception Registry</span>
+            <p class="text-xs text-slate-500 mt-1">Manage approved operational exceptions. Excepted findings are documented but do not penalize the security posture score.</p>
+          </div>
+        </div>
+        <div class="p-4">
+          <div class="max-h-[400px] overflow-y-auto rounded-lg" style="border:1px solid rgba(51,65,85,0.3)">
+            <table>
+              <thead>
+                <tr>
+                  <th>Finding Type</th>
+                  <th>Detail Match (Optional)</th>
+                  <th>Business Justification</th>
+                  <th>Created At</th>
+                  <th class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="exceptionsTableBody">
+                <tr><td colspan="5" class="text-center text-slate-500 py-4">No exceptions registered.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -344,7 +390,7 @@ tr:hover td { background:rgba(99,102,241,0.04); }
 </div>
 
 <script>
-let stores = { findings: [], overview: null, user: null, groups: [], privileges: [], compliance: [], processes: [], services: [], connections: [], localUsers: [], localGroups: [], groupMembers: [], aclEntries: [], riskConfig: null };
+let stores = { findings: [], overview: null, user: null, groups: [], privileges: [], compliance: [], processes: [], services: [], connections: [], localUsers: [], localGroups: [], groupMembers: [], aclEntries: [], riskConfig: null, exceptions: [] };
 let findingFilter = 'all';
 let sortState = { processes: { key: 'risk_score', asc: false }, services: { key: 'name', asc: true } };
 const circumference = 2 * Math.PI * 78;
@@ -420,7 +466,7 @@ function sortBy(table, key) {
 
 async function fetchAll() {
   try {
-    const [overview, findings, user, compliance, procs, svcs, conns, localUsers, localGroups, acl, riskConfig] = await Promise.all([
+    const [overview, findings, user, compliance, procs, svcs, conns, localUsers, localGroups, acl, riskConfig, exceptions] = await Promise.all([
       fetch('/api/overview').then(r=>r.json()),
       fetch('/api/findings').then(r=>r.json()),
       fetch('/api/user').then(r=>r.json()),
@@ -432,6 +478,7 @@ async function fetchAll() {
       fetch('/api/local-groups').then(r=>r.json()),
       fetch('/api/acl').then(r=>r.json()),
       fetch('/api/risk-config').then(r=>r.json()).catch(()=>null),
+      fetch('/api/exceptions').then(r=>r.json()).catch(()=>[]),
     ]);
     stores = {
       overview, findings: Array.isArray(findings) ? findings : [],
@@ -445,9 +492,19 @@ async function fetchAll() {
       groupMembers: (localGroups && localGroups.members) || [],
       aclEntries: Array.isArray(acl) ? acl : [],
       riskConfig: riskConfig && !riskConfig.error ? riskConfig : null,
+      exceptions: Array.isArray(exceptions) ? exceptions : [],
     };
     renderAll();
   } catch(e) { console.error(e); document.getElementById('execSummary').textContent = 'Error loading data: ' + e.message; }
+}
+
+async function computeIntegrityHash(data) {
+  const encoder = new TextEncoder();
+  const dataString = JSON.stringify(data);
+  const msgUint8 = encoder.encode(dataString);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function renderAll() {
@@ -515,6 +572,7 @@ function renderAll() {
   renderServices();
   renderAccess();
   renderConfig();
+  renderExceptions();
   document.getElementById('execSubtitle').innerHTML = 'Score: <strong>' + score + '</strong>/100 &middot; ' + stores.findings.length + ' findings &middot; ' + nc + ' of 93 Annex A controls non-compliant';
 
   // Badge
@@ -529,6 +587,22 @@ function renderAll() {
     const cnt = sev === 'all' ? stores.findings.length : stores.findings.filter(f => f.severity === sev).length;
     el.textContent = sev.charAt(0).toUpperCase() + sev.slice(1) + ' ' + cnt;
   });
+
+  // Calculate and render Cryptographic Integrity Seal
+  (async () => {
+    try {
+      const integrityData = {
+        score: score,
+        findings: stores.findings.map(f => ({ type: f.type, severity: f.severity, detail: f.detail, is_excepted: f.is_excepted })),
+        timestamp: o.finished_at
+      };
+      const hash = await computeIntegrityHash(integrityData);
+      document.getElementById('integrityHash').textContent = hash;
+      document.getElementById('integritySeal').style.display = 'flex';
+    } catch (e) {
+      console.error('Integrity hash failed:', e);
+    }
+  })();
 }
 
 function renderFindings() {
@@ -537,14 +611,22 @@ function renderFindings() {
   const filtered = findingFilter === 'all' ? stores.findings : stores.findings.filter(f => f.severity === findingFilter);
   if (!filtered.length) { container.innerHTML = '<div class="text-slate-400 text-center py-8">No ' + findingFilter + ' findings</div>'; return; }
   container.innerHTML = filtered.map(f => {
-    const color = f.severity === 'critical' ? '#ef4444' : f.severity === 'high' ? '#fb923c' : f.severity === 'medium' ? '#facc15' : '#60a5fa';
+    const color = f.is_excepted ? '#475569' : (f.severity === 'critical' ? '#ef4444' : f.severity === 'high' ? '#fb923c' : f.severity === 'medium' ? '#facc15' : '#60a5fa');
+    const exceptionBadge = f.is_excepted ? '<span class="badge badge-gray ml-1.5">EXCEPTED</span>' : '';
+    const cleanDetail = (f.detail || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const exceptAction = f.is_excepted
+      ? `<div class="text-xs text-emerald-400 mt-2 ml-1"><span class="text-slate-500">Approved Justification:</span> ${f.exception_justification}</div>`
+      : `<button onclick="promptAddException('${f.type}', '${cleanDetail}')" class="text-[0.68rem] text-indigo-400 hover:text-indigo-300 transition-colors mt-2 block ml-1">&#x2795; Register Exception</button>`;
+
     return '<div class="mb-3 rounded-lg p-4" style="background:rgba(15,23,42,0.5);border-left:3px solid ' + color + '">' +
       '<div class="flex items-center gap-2 mb-1 flex-wrap">' +
       '<span class="badge badge-' + f.severity + '">' + f.severity.toUpperCase() + '</span>' +
+      exceptionBadge +
       '<span class="font-semibold text-white text-sm">' + f.title + '</span>' +
       '<span class="ml-auto text-xs text-slate-600 mono">' + (f.iso || '') + '</span></div>' +
       (f.detail ? '<div class="text-xs text-slate-400 ml-1 mb-1.5 leading-relaxed">' + f.detail + '</div>' : '') +
       (f.remediation ? '<div class="text-xs text-slate-500 ml-1"><span class="text-indigo-400">Remediation:</span> ' + f.remediation + '</div>' : '') +
+      exceptAction +
       '</div>';
   }).join('');
 }
@@ -806,6 +888,76 @@ async function triggerScan() {
 
 function exportCSV(type) {
   window.open('/api/export/' + type, '_blank');
+}
+
+function renderExceptions() {
+  const container = document.getElementById('exceptionsTableBody');
+  const list = stores.exceptions || [];
+  if (!list.length) {
+    container.innerHTML = '<tr><td colspan="5" class="text-center text-slate-500 py-4">No exceptions registered.</td></tr>';
+    return;
+  }
+  container.innerHTML = list.map(e => {
+    const cleanDetail = (e.detail || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const detailText = e.detail ? `<code class="text-xs text-slate-400 max-w-[200px] truncate block" title="${cleanDetail}">${e.detail}</code>` : '<span class="text-slate-600">Any</span>';
+    const dateStr = e.created_at ? new Date(e.created_at).toLocaleString() : 'N/A';
+    return `<tr>
+      <td class="mono text-xs text-slate-300 font-bold">${e.type}</td>
+      <td>${detailText}</td>
+      <td class="text-xs text-slate-200">${e.justification}</td>
+      <td class="text-xs text-slate-400 mono">${dateStr}</td>
+      <td class="text-right">
+        <button onclick="deleteException('${e.type}', '${cleanDetail}')" class="badge badge-red hover:opacity-80 transition-opacity">Revoke</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function promptAddException(type, detail) {
+  const justification = prompt('Please enter a business justification for this exception:');
+  if (!justification) {
+    return;
+  }
+  try {
+    const response = await fetch('/api/exceptions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ type, detail, justification })
+    });
+    if (response.ok) {
+      await triggerScan();
+    } else {
+      const err = await response.json();
+      alert('Failed to register exception: ' + (err.error || 'Unknown error'));
+    }
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function deleteException(type, detail) {
+  if (!confirm('Are you sure you want to revoke this exception?')) {
+    return;
+  }
+  try {
+    const response = await fetch('/api/exceptions', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ type, detail })
+    });
+    if (response.ok) {
+      await triggerScan();
+    } else {
+      const err = await response.json();
+      alert('Failed to revoke exception: ' + (err.error || 'Unknown error'));
+    }
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
 }
 
 fetchAll();

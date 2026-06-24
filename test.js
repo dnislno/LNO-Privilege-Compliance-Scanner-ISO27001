@@ -16,6 +16,33 @@ function fetch(url) {
   });
 }
 
+function request(method, path, body = null) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(BASE + path);
+    const options = {
+      hostname: url.hostname,
+      port: url.port || 9090,
+      path: url.pathname + url.search,
+      method: method,
+      headers: {}
+    };
+    if (body) {
+      options.headers['Content-Type'] = 'application/json';
+      options.headers['Content-Length'] = Buffer.byteLength(body);
+    }
+    const req = http.request(options, res => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: data }));
+    });
+    req.on('error', reject);
+    if (body) {
+      req.write(body);
+    }
+    req.end();
+  });
+}
+
 function check(name, ok, detail) {
   if (ok) { passed++; console.log(`  PASS  ${name}`); }
   else { failed++; console.log(`  FAIL  ${name} — ${detail}`); }
@@ -122,7 +149,48 @@ async function run() {
   const favicon = await fetch(BASE + '/favicon.svg');
   check('Favicon serves', favicon.status === 200, `Got ${favicon.status}`);
 
+  // 15. Exceptions API tests
+  const excGetInitial = await fetch(BASE + '/api/exceptions');
+  check('Exceptions initial GET returns 200', excGetInitial.status === 200, `Got ${excGetInitial.status}`);
+  const excListInitial = JSON.parse(excGetInitial.body);
+  check('Exceptions list is array', Array.isArray(excListInitial), typeof excListInitial);
+
+  // Add an exception
+  const addExcResp = await request('POST', '/api/exceptions', JSON.stringify({
+    type: 'test_finding',
+    detail: 'test_detail',
+    justification: 'Unit test justification'
+  }));
+  check('Exceptions POST returns 200', addExcResp.status === 200, `Got ${addExcResp.status}`);
+  const addExcData = JSON.parse(addExcResp.body);
+  check('Exceptions POST status is saved', addExcData.status === 'saved', JSON.stringify(addExcData));
+
+  // Verify it is in the list
+  const excGetAfter = await fetch(BASE + '/api/exceptions');
+  const excListAfter = JSON.parse(excGetAfter.body);
+  const foundExc = excListAfter.find(e => e.type === 'test_finding' && e.detail === 'test_detail');
+  check('Exception is added to list', !!foundExc, 'Exception not found in list');
+  if (foundExc) {
+    check('Exception has justification', foundExc.justification === 'Unit test justification', foundExc.justification);
+  }
+
+  // Delete/Revoke exception
+  const delExcResp = await request('DELETE', '/api/exceptions', JSON.stringify({
+    type: 'test_finding',
+    detail: 'test_detail'
+  }));
+  check('Exceptions DELETE returns 200', delExcResp.status === 200, `Got ${delExcResp.status}`);
+  const delExcData = JSON.parse(delExcResp.body);
+  check('Exceptions DELETE count is 1', delExcData.count === 1, JSON.stringify(delExcData));
+
+  // Verify list is clean
+  const excGetFinal = await fetch(BASE + '/api/exceptions');
+  const excListFinal = JSON.parse(excGetFinal.body);
+  const foundExcFinal = excListFinal.find(e => e.type === 'test_finding' && e.detail === 'test_detail');
+  check('Exception is revoked/removed from list', !foundExcFinal, 'Exception still in list');
+
   console.log(`\n=== Results: ${passed} passed, ${failed} failed ===\n`);
+
   process.exit(failed > 0 ? 1 : 0);
 }
 
