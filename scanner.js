@@ -22,19 +22,20 @@ const scanId = crypto.randomUUID();
 // =============================================================================
 // Each finding is mapped to an ISO 27001 Annex A control. The mapping rationale
 // is documented here for audit trail and compliance evidence purposes.
+// All codes below use ISO/IEC 27001:2022 numbering (Annex A — 93 controls, 4 themes).
 //
-//   A.8.1.1  Asset Inventory        → System info (baseline for all controls)
-//   A.9.2    Access Control         → User accounts, group memberships, ACLs
-//   A.9.2.2  Privilege Mgmt         → Processes running with excessive privileges
-//   A.9.2.3  Privilege Mgmt         → Privilege audit, UAC, LSA protection
-//   A.9.4.3  Password Policy        → Password length, complexity, lockout, expiry
-//   A.11.1.1 Physical Security      → System metadata (hostname, domain)
-//   A.12.1.2 Change Management      → Process/service inventory (baseline)
-//   A.12.2.1 Malware Protection     → Defender status, unsigned/suspicious procs
-//   A.12.3.1 Backup                 → System uptime (future)
-//   A.12.4.1 Logging                → Event log config (future)
-//   A.12.6.1 Vulnerability Mgmt     → Service path vulnerabilities, weak ACLs
-//   A.13.1.1 Network Security       → Firewall status, network connections
+//   A.5.9   Information Classification → System info (baseline for all controls)
+//   A.5.15  Access Control            → User accounts, group memberships, ACLs
+//   A.8.2   Privileged Access Rights  → Processes running with excessive privileges
+//   A.8.2   Privileged Access Rights  → Privilege audit, UAC, LSA protection
+//   A.5.17  Authentication Info       → Password length, complexity, lockout, expiry
+//   A.7.1   Physical Security         → System metadata (hostname, domain)
+//   A.5.37  Documented Procedures     → Process/service inventory (baseline)
+//   A.8.7   Malware Protection        → Defender status, unsigned/suspicious procs
+//   A.8.13  Information Backup        → System uptime (future)
+//   A.8.15  Logging & Monitoring      → Event log config (future)
+//   A.8.8   Technical Vulnerabilities → Service path vulnerabilities, weak ACLs
+//   A.8.20  Network Controls          → Firewall status, network connections
 //
 // Each FINDING_DEFS entry below includes its iso field referencing the above.
 // The compliance_status table stores per-control pass/fail based on whether
@@ -55,7 +56,7 @@ function loadConfig() {
 const CONFIG = loadConfig();
 
 function runPS(script, timeoutMs = 30000) {
-  const tmpFile = path.join(__dirname, `_ps_${Date.now()}_${Math.random().toString(36).slice(2)}.ps1`);
+  const tmpFile = path.join(os.tmpdir(), `_lno_ps_${Date.now()}_${Math.random().toString(36).slice(2)}.ps1`);
   fs.writeFileSync(tmpFile, script, 'utf-8');
   try {
     const result = execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${tmpFile}"`, {

@@ -33,7 +33,12 @@ try {
   }
 } catch (_) { /* .env file is optional */ }
 
-const SCAN_TOKEN = process.env.SCAN_TOKEN || '';
+const SCAN_TOKEN = process.env.SCAN_TOKEN || 'scan_trigger';
+if (SCAN_TOKEN === 'scan_trigger') {
+  console.log('  SCAN_TOKEN: default ("scan_trigger") — set SCAN_TOKEN env var for custom token');
+} else {
+  console.log('  SCAN_TOKEN: custom token configured');
+}
 
 // CSV cells starting with these chars can execute formulas in Excel/Sheets
 const CSV_FORMULA_CHARS = ['=', '+', '-', '@', '|'];
@@ -283,8 +288,14 @@ const MIME = { '.html': 'text/html', '.svg': 'image/svg+xml', '.css': 'text/css'
 
 const server = http.createServer((req, res) => {
   if (req.url.startsWith('/api/')) return handleAPI(req, res);
-  // Serve static files (logo, favicon, etc.)
-  const filePath = path.join(__dirname, req.url === '/' ? 'index.html' : req.url.replace(/^\//, ''));
+  // Serve static files (logo, favicon, etc.) — with path traversal protection
+  const sanitized = req.url === '/' ? 'index.html' : req.url.replace(/^\//, '').replace(/\.\./g, '');
+  const filePath = path.resolve(path.join(__dirname, sanitized));
+  if (!filePath.startsWith(__dirname + path.sep)) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
   if (fs.existsSync(filePath) && !fs.statSync(filePath).isDirectory()) {
     const ext = path.extname(filePath);
     res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });

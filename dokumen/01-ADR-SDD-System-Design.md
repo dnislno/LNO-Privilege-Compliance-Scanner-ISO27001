@@ -296,7 +296,7 @@ findings               - Temuan keamanan (prioritas)
   ├── type TEXT          (admin_member, def_disabled, dll)
   ├── severity TEXT      (critical/high/medium/low)
   ├── category TEXT      (privilege_management, access_control, dll)
-  ├── iso TEXT           (A.9.2.3, A.12.2.1, dll)
+  ├── iso TEXT           (A.8.2, A.8.7, A.5.17, dll — ISO 27001:2022)
   ├── title, detail, remediation
 
 compliance_status      - Kepatuhan terhadap 93 kontrol Annex A ISO 27001:2022
