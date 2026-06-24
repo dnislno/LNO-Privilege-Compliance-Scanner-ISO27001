@@ -318,14 +318,7 @@ Edit `risk-config.json` to customize scoring:
 - **Compliance = negative evidence** — "compliant" status means no finding was detected, not that the control is fully implemented. Always supplement with manual verification for critical controls.
 - **In-memory database** — `scan.db` is loaded into RAM on server start and deleted from disk. Data persists only during the server session for security. Restarting the server without re-scanning means no data (intentional — limits data exposure).
 
-### Planned Features
-- [x] Configurable risk scoring via risk-config.json
-- [x] CSV export for findings, compliance, and processes
-- [x] Security headers & CORS restriction
-- [x] Input validation on API endpoints
-- [x] Integration test suite
-- [x] CI/CD pipeline (GitHub Actions)
-- [x] Scheduled scan mode (--schedule for Task Scheduler)
+### Roadmap
 - [ ] PDF compliance report generation
 - [ ] Configurable notification thresholds (email/teams/webhook)
 - [ ] Multi-machine remote scanning

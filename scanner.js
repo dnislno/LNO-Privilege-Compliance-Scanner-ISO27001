@@ -11,6 +11,7 @@ const { execSync } = require('child_process');
 const initSqlJs = require('sql.js');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const crypto = require('crypto');
 
 const DB_PATH = path.join(__dirname, 'scan.db');
