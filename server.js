@@ -61,19 +61,34 @@ function isValidPid(v) {
   return Number.isFinite(n) && n > 0 && n < 65536;
 }
 
+let dbCache = null;
+let SQL = null;
+
+// Load DB from disk into memory, then delete the file for security.
+// Data is served from RAM for the lifetime of the server process.
+async function loadDB() {
+  const sqlJs = await initSqlJs();
+  SQL = sqlJs;
+  if (fs.existsSync(DB_PATH)) {
+    const buf = fs.readFileSync(DB_PATH);
+    dbCache = new SQL.Database(buf);
+    try { fs.unlinkSync(DB_PATH); } catch (_) {}
+    console.log('  DB: loaded into memory, file deleted from disk');
+  } else {
+    dbCache = new SQL.Database();
+    console.log('  DB: empty in-memory database created');
+  }
+}
+
 function queryDB(sql, params = []) {
   return new Promise(async (resolve) => {
-    if (!fs.existsSync(DB_PATH)) return resolve([]);
+    if (!dbCache) return resolve([]);
     try {
-      const buf = fs.readFileSync(DB_PATH);
-      const SQL = await initSqlJs();
-      const db = new SQL.Database(buf);
-      const stmt = db.prepare(sql);
+      const stmt = dbCache.prepare(sql);
       stmt.bind(params);
       const rows = [];
       while (stmt.step()) rows.push(stmt.getAsObject());
       stmt.free();
-      db.close();
       resolve(rows);
     } catch(e) { resolve([]); }
   });
@@ -272,6 +287,8 @@ async function handleAPI(req, res) {
     const { scan } = require('./scanner.js');
     try {
       await scan();
+      // Reload DB into memory after scan writes new data
+      await loadDB();
       res.end(JSON.stringify({ status: 'done' }));
     } catch (e) {
       res.writeHead(500);
@@ -312,4 +329,7 @@ const server = http.createServer((req, res) => {
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => console.log(`Server: http://localhost:${PORT}`));
+// Start server and load DB into memory
+loadDB().then(() => {
+  server.listen(PORT, '127.0.0.1', () => console.log(`Server: http://localhost:${PORT}`));
+});

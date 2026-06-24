@@ -144,6 +144,16 @@
 | **Alasan** | Menyesuaikan output compliance dengan domain expertise pengguna meningkatkan nilai praktis tool. Framework alternatif (NIST CSF, PCI-DSS, CIS) tidak relevan dengan workflow pengguna. |
 | **Status** | **Diterima** |
 
+### ADR-015: In-Memory Database with Auto-Cleanup
+
+| Field | Value |
+|-------|-------|
+| **Keputusan** | DB di-load ke RAM saat server start, file `scan.db` dihapus dari disk. Setelah setiap scan, DB di-reload dan file dihapus lagi. |
+| **Konteks** | Audit eksternal (#4) menemukan bahwa `scan.db` menyimpan metadata sistem sensitif (user, ACL, privilege) dalam bentuk unencrypted SQLite di disk selama server menyala. Siapapun dengan akses ke direktori proyek bisa membaca file ini. |
+| **Alasan** | Data sensitif hanya perlu ada di disk selama proses scan (~100ms). Setelah di-load ke memory, file tidak diperlukan lagi — menghapusnya menghilangkan risiko persistent storage. sql.js sudah beroperasi dari memory buffer (`new SQL.Database(buf)`), jadi perubahan ini natural. |
+| **Trade-off** | (1) Memory: ~1-5MB tambahan untuk hold DB di RAM — tidak signifikan. (2) Server restart kehilangan data — sesuai dengan desain tool sebagai session-based scanner, bukan persistent server. (3) Tidak bisa akses DB dari tool eksternal selama server hidup — ini adalah fitur keamanan, bukan kerugian. |
+| **Status** | **Diterima** |
+
 ---
 
 ## Bagian B: System Design Document
@@ -153,25 +163,25 @@
 LNO Privilege Compliance Scanner adalah alat penilaian postur keamanan Windows dengan dua komponen:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    LNO Privilege Compliance Scanner               │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐  │
-│  │   Scanner     │────>│   SQLite DB  │<────│   Server     │  │
-│  │  (scanner.js) │     │  (scan.db)   │     │  (server.js) │  │
-│  └──────┬───────┘     └──────────────┘     └──────┬───────┘  │
-│         │                                        │           │
-│         │ PowerShell                              │ HTTP GET  │
-│         ▼                                        ▼           │
-│  ┌──────────────┐                    ┌──────────────────┐     │
-│  │  WMI / WMI   │                    │   Web Dashboard  │     │
-│  │  netstat /   │                    │  (index.html)    │     │
-│  │  secedit /   │                    │  localhost:9090  │     │
-│  │  Get-Acl     │                    └──────────────────┘     │
-│  └──────────────┘                                            │
-│                                                               │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│             LNO Privilege Compliance Scanner                   │
+├──────────────────────────────────────────────────────────────┤
+│                                                                │
+│  ┌──────────────┐    ┌──────────────────┐    ┌──────────────┐ │
+│  │   Scanner     │───>│  SQLite DB (RAM) │<───│   Server     │ │
+│  │  (scanner.js) │    │  in-memory       │    │  (server.js) │ │
+│  └──────┬───────┘    │  scan.db deleted  │    └──────┬───────┘ │
+│         │            └──────────────────┘           │          │
+│         │ PowerShell                                 │ HTTP GET │
+│         ▼                                           ▼          │
+│  ┌──────────────┐                     ┌──────────────────┐     │
+│  │  WMI / WMI   │                     │   Web Dashboard  │     │
+│  │  netstat /   │                     │  (index.html)    │     │
+│  │  secedit /   │                     │  localhost:9090  │     │
+│  │  Get-Acl     │                     └──────────────────┘     │
+│  └──────────────┘                                             │
+│                                                                │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ### 2. Alur Data
@@ -202,11 +212,12 @@ Fase 1: SCAN
 
 Fase 2: SERVE
 ──────────────
-1. HTTP server mendengarkan di port 9090
-2. REST API membaca dari scan.db via sql.js
-3. API mengembalikan JSON dari scan terakhir yang selesai
-4. Dashboard (index.html) memanggil API saat page load
-5. Refresh POST → memicu scan baru → dashboard menunggu hingga selesai
+1. HTTP server mendengarkan di port 9090 (127.0.0.1 only)
+2. Saat start, server membaca scan.db ke memory, lalu menghapus file dari disk
+3. REST API membaca dari in-memory SQLite (RAM), bukan dari file disk
+4. API mengembalikan JSON dari scan terakhir yang selesai
+5. Dashboard (index.html) memanggil API saat page load
+6. Refresh POST → memicu scan baru → DB di-reload dari disk ke memory → file dihapus kembali
 
 Fase 3: RENDER
 ───────────────
