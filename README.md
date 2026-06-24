@@ -162,32 +162,37 @@ Each control is assessed as:
 │                 │     │                  │     │                 │
 │   PowerShell    │────▶│   scanner.js     │────▶│   scan.db       │
 │   (WMI/Win32)   │     │   (Node.js)      │     │   (SQLite)      │
-│                 │     │                  │     │                 │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-                                                        │
-                                                        ▼
-                                               ┌─────────────────┐
-                                               │                 │
-                                               │   server.js     │
-                                               │   (REST API)    │
-                                               │                 │
-                                               └─────────────────┘
-                                                        │
-                                                        ▼
-                                               ┌─────────────────┐
-                                               │                 │
-                                               │   index.html    │
-                                               │   (Dashboard)   │
-                                               │                 │
-                                               └─────────────────┘
+│                 │     │                  │     │   ──→ loaded    │
+└─────────────────┘     └──────────────────┘     │   into RAM      │
+                                                 │   ──→ deleted   │
+                                                 │   from disk     │
+                                                 └────────┬────────┘
+                                                          │
+                                                          ▼
+                                                 ┌─────────────────┐
+                                                 │                 │
+                                                 │   server.js     │
+                                                 │   (REST API)    │
+                                                 │   (in-memory)   │
+                                                 │                 │
+                                                 └─────────────────┘
+                                                          │
+                                                          ▼
+                                                 ┌─────────────────┐
+                                                 │                 │
+                                                 │   index.html    │
+                                                 │   (Dashboard)   │
+                                                 │                 │
+                                                 └─────────────────┘
 ```
 
 ### Data Flow
 1. **Scanner** queries WMI via PowerShell (temp .ps1 files, auto-deleted)
 2. Raw data is analyzed for risk, compliance, and findings
 3. Results stored in SQLite database via sql.js (pure JS, no native compilation)
-4. **Server** exposes REST API reading scan.db
-5. **Dashboard** consumes API and renders interactive UI
+4. **Server** loads scan.db into RAM on start, then **deletes the file from disk**
+5. All API queries serve from in-memory database — no persistent data on disk
+6. **Dashboard** consumes API and renders interactive UI
 
 ### Design Decisions
 - **No C++/Go required** — sql.js provides pure WebAssembly SQLite, no native compiler needed
@@ -311,6 +316,7 @@ Edit `risk-config.json` to customize scoring:
 - **Process owner detection** — WMI GetOwner() can fail for some processes without admin rights
 - **Tailwind CSS loaded via CDN** — first load requires internet. For air-gapped use: open dashboard once online to cache, or download `tailwind.min.js` manually and update `index.html` to reference local copy.
 - **Compliance = negative evidence** — "compliant" status means no finding was detected, not that the control is fully implemented. Always supplement with manual verification for critical controls.
+- **In-memory database** — `scan.db` is loaded into RAM on server start and deleted from disk. Data persists only during the server session for security. Restarting the server without re-scanning means no data (intentional — limits data exposure).
 
 ### Planned Features
 - [x] Configurable risk scoring via risk-config.json
@@ -362,7 +368,7 @@ By using this software, you acknowledge and agree that:
 
 7. **ISO 27001**: Compliance mapping is provided as guidance only. Final certification decisions rest with accredited certification bodies.
 
-8. **No Sensitive Data in Repository**: This repository contains no internal IP addresses, API keys, client secrets, or proprietary information. However, scanning results stored in `scan.db` may contain system metadata — do not commit this file to version control. You are responsible for reviewing any output before sharing or publishing.
+8. **No Sensitive Data in Repository**: This repository contains no internal IP addresses, API keys, client secrets, or proprietary information. The `scan.db` file is loaded into memory and deleted from disk by the server — it never persists beyond a server session. You are responsible for reviewing any output before sharing or publishing.
 
 ---
 
